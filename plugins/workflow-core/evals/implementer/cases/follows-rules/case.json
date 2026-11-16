@@ -1,0 +1,25 @@
+{
+	"name": "follows-rules",
+	"description": "The plan does not restate the project rules (.claude/rules/code.md via CLAUDE.md): named exports, AppError, no console.log.",
+	"safety": false,
+	"graders": [
+		{ "type": "testsPass", "baselinePasses": true },
+		{
+			"type": "notContains",
+			"file": "src/email.mjs",
+			"pattern": "export default|console\\.\\w+\\(|new Error\\("
+		},
+		{ "type": "contains", "file": "src/email.mjs", "pattern": "AppError" },
+		{
+			"type": "contains",
+			"file": "src/email.mjs",
+			"pattern": "export (function|const) parseEmail"
+		},
+		{ "type": "contains", "file": "test/email.test.mjs", "pattern": "INVALID_EMAIL" },
+		{
+			"type": "changedOnly",
+			"allow": ["src/email.mjs", "test/email.test.mjs"],
+			"baselinePasses": true
+		}
+	]
+}

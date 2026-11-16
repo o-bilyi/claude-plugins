@@ -1,0 +1,14 @@
+{
+	"name": "claude-plugins",
+	"private": true,
+	"type": "module",
+	"license": "MIT",
+	"scripts": {
+		"test": "node --test plugins/workflow-core/tests/*.test.mjs",
+		"format": "prettier --write .",
+		"format:check": "prettier --check ."
+	},
+	"devDependencies": {
+		"prettier": "3.8.3"
+	}
+}

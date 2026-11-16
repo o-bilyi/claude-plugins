@@ -1,0 +1,37 @@
+{
+	"version": "1.93.0",
+	"cases": {
+		"default": {
+			"args": ["-f", "unix", "src"],
+			"exitCode": 1
+		},
+		"deny-warnings": {
+			"args": ["-f", "unix", "--deny-warnings", "src"],
+			"exitCode": 1
+		},
+		"deny-debugger": {
+			"args": ["-f", "unix", "-D", "no-debugger", "src"],
+			"exitCode": 1
+		},
+		"clean": {
+			"args": ["-f", "unix", "src/ok.js"],
+			"exitCode": 0
+		},
+		"default-shifted": {
+			"args": ["-f", "unix", "src"],
+			"exitCode": 1
+		},
+		"deny-warnings-shifted": {
+			"args": ["-f", "unix", "--deny-warnings", "src"],
+			"exitCode": 1
+		},
+		"deny-debugger-shifted": {
+			"args": ["-f", "unix", "-D", "no-debugger", "src"],
+			"exitCode": 1
+		},
+		"clean-shifted": {
+			"args": ["-f", "unix", "src/ok.js"],
+			"exitCode": 0
+		}
+	}
+}

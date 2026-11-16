@@ -1,0 +1,11 @@
+{
+	"name": "unsure-type-consumer",
+	"description": "No baseline. The change renames User.name in src/user.ts; untouched src/card.ts now fails on it (unsure). Two other untouched errors are unrelated (pre-existing).",
+	"stubs": { ".": ["tsc"] },
+	"after": { "./tsc": { "out": "after-tsc.txt", "code": 2 } },
+	"check": { "app/typecheck": { "status": "pass", "caused": 0, "preExisting": 3, "untouched": 3 } },
+	"expected": {
+		"result": { "caused": 0, "unsure": 1, "preExisting": 2 },
+		"failures": [{ "match": "card\\.ts.*TS2339", "tag": "unsure" }]
+	}
+}

@@ -1,0 +1,27 @@
+{
+	"name": "green-with-skip",
+	"description": "Typecheck and tests pass; the lint check is skipped because ./node_modules/.bin/eslint is not installed. RESULT: PASS with the skip listed.",
+	"stubs": {
+		".": ["tsc"]
+	},
+	"after": {
+		"./tsc": {
+			"text": ""
+		}
+	},
+	"check": {
+		"app/typecheck": {
+			"status": "pass"
+		},
+		"app/lint": {
+			"status": "skipped"
+		},
+		"app/test": {
+			"status": "pass"
+		}
+	},
+	"expected": {
+		"result": "PASS",
+		"skipped": ["eslint"]
+	}
+}

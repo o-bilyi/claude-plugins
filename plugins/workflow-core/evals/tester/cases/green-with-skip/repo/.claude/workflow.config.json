@@ -1,0 +1,22 @@
+{
+	"version": 1,
+	"app": {
+		"checks": [
+			{
+				"kind": "typecheck",
+				"run": "./node_modules/.bin/tsc --noEmit",
+				"parser": "tsc"
+			},
+			{
+				"kind": "lint",
+				"run": "./node_modules/.bin/eslint -f json src",
+				"changed": "./node_modules/.bin/eslint -f json {code}",
+				"parser": "eslint-json"
+			},
+			{
+				"kind": "test",
+				"run": "node --test"
+			}
+		]
+	}
+}

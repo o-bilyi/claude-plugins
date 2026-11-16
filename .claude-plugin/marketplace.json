@@ -1,0 +1,16 @@
+{
+	"name": "obilyi-plugins",
+	"owner": {
+		"name": "Oleksandr Bilyi"
+	},
+	"metadata": {
+		"description": "Reusable Claude Code workflow plugins"
+	},
+	"plugins": [
+		{
+			"name": "workflow-core",
+			"source": "./plugins/workflow-core",
+			"description": "Config-driven plan → implement → test → PR workflow: planner/implementer/tester agents, verify and pr skills, format and verify-changed hooks."
+		}
+	]
+}

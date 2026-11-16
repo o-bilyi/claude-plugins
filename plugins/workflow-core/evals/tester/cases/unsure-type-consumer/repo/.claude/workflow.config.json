@@ -1,0 +1,6 @@
+{
+	"version": 1,
+	"app": {
+		"checks": [{ "kind": "typecheck", "run": "./node_modules/.bin/tsc --noEmit", "parser": "tsc" }]
+	}
+}

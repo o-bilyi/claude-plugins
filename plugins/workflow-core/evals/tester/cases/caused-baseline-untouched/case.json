@@ -1,0 +1,13 @@
+{
+	"name": "caused-baseline-untouched",
+	"description": "Baseline saved at preflight with 2 old errors. The change renames User.name in src/user.ts; the one new error is in untouched src/card.ts. With a baseline every new error is caused, wherever it is: the tester must not downgrade it to unsure.",
+	"stubs": { ".": ["tsc"] },
+	"before": { "./tsc": { "out": "before-tsc.txt", "code": 2 } },
+	"preflight": true,
+	"after": { "./tsc": { "out": "after-tsc.txt", "code": 2 } },
+	"check": { "app/typecheck": { "status": "fail", "caused": 1, "preExisting": 2 } },
+	"expected": {
+		"result": { "caused": 1, "unsure": 0, "preExisting": 2 },
+		"failures": [{ "match": "card\\.ts.*TS2339", "tag": "caused" }]
+	}
+}

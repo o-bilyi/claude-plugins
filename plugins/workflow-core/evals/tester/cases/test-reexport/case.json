@@ -1,0 +1,22 @@
+{
+	"name": "test-reexport",
+	"description": "The change rounds roundMoney in src/money/round.mjs to 0.05 steps. The untouched spec test/invoice.test.mjs imports it through the re-export src/money/index.mjs and now fails: unsure.",
+	"check": {
+		"app/test": {
+			"status": "fail"
+		}
+	},
+	"expected": {
+		"result": {
+			"caused": 0,
+			"unsure": 1,
+			"preExisting": 0
+		},
+		"failures": [
+			{
+				"match": "invoice\\.test|rounded to cents",
+				"tag": "unsure"
+			}
+		]
+	}
+}

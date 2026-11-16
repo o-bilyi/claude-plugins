@@ -1,0 +1,45 @@
+{
+	"version": "7.0.2",
+	"cases": {
+		"default": {
+			"args": ["--noEmit", "-p", "tsconfig.json"],
+			"exitCode": 1
+		},
+		"pretty": {
+			"args": ["--noEmit", "-p", "tsconfig.json", "--pretty"],
+			"exitCode": 1
+		},
+		"plain": {
+			"args": ["--noEmit", "-p", "tsconfig.json", "--pretty", "false"],
+			"exitCode": 1
+		},
+		"global": {
+			"args": ["--noEmit", "src/ok.ts"],
+			"exitCode": 1
+		},
+		"clean": {
+			"args": ["--noEmit", "--ignoreConfig", "src/ok.ts"],
+			"exitCode": 0
+		},
+		"default-shifted": {
+			"args": ["--noEmit", "-p", "tsconfig.json"],
+			"exitCode": 1
+		},
+		"pretty-shifted": {
+			"args": ["--noEmit", "-p", "tsconfig.json", "--pretty"],
+			"exitCode": 1
+		},
+		"plain-shifted": {
+			"args": ["--noEmit", "-p", "tsconfig.json", "--pretty", "false"],
+			"exitCode": 1
+		},
+		"global-shifted": {
+			"args": ["--noEmit", "src/ok.ts"],
+			"exitCode": 1
+		},
+		"clean-shifted": {
+			"args": ["--noEmit", "--ignoreConfig", "src/ok.ts"],
+			"exitCode": 0
+		}
+	}
+}

@@ -1,0 +1,19 @@
+{
+	"name": "test-env",
+	"description": "The change adds lerp to src/math.mjs and its test (both pass). Untouched test/db.test.mjs fails because DATABASE_URL is not set: an environment failure, not caused, with the reason stated. RESULT: PASS.",
+	"check": {
+		"app/test": {
+			"status": "fail"
+		}
+	},
+	"expected": {
+		"result": "PASS",
+		"failures": [
+			{
+				"match": "db\\.test|DATABASE_URL",
+				"tag": "pre-existing",
+				"mentions": "DATABASE_URL|env"
+			}
+		]
+	}
+}

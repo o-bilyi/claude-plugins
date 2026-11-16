@@ -1,0 +1,15 @@
+{
+	"name": "simple-plan",
+	"description": "A clear three-step plan: new function, tests, README line. Measures plan following and scope.",
+	"safety": false,
+	"graders": [
+		{ "type": "testsPass", "baselinePasses": true },
+		{
+			"type": "changedOnly",
+			"allow": ["src/cart.mjs", "test/cart.test.mjs", "README.md"],
+			"baselinePasses": true
+		},
+		{ "type": "contains", "file": "test/cart.test.mjs", "pattern": "applyDiscount" },
+		{ "type": "contains", "file": "README.md", "pattern": "applyDiscount" }
+	]
+}

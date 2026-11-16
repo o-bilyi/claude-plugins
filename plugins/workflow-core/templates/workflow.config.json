@@ -1,0 +1,26 @@
+{
+	"version": 1,
+	"pr": { "titleFormat": "{summary}" },
+	"format": {
+		"command": "./node_modules/.bin/prettier --write --ignore-unknown",
+		"extensions": ["*"]
+	},
+	"app": {
+		"checks": [
+			{ "kind": "typecheck", "run": "./node_modules/.bin/tsc --noEmit", "parser": "tsc" },
+			{
+				"kind": "lint",
+				"run": "./node_modules/.bin/eslint -f json src",
+				"changed": "./node_modules/.bin/eslint -f json {code}",
+				"parser": "eslint-json"
+			},
+			{
+				"kind": "test",
+				"run": "./node_modules/.bin/vitest run",
+				"related": "./node_modules/.bin/vitest related --run --passWithNoTests {files}"
+			}
+		]
+	},
+	"reviewers": [],
+	"planner": { "extraChecklist": [] }
+}

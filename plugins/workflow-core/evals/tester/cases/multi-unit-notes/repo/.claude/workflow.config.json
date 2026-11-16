@@ -1,0 +1,30 @@
+{
+	"version": 1,
+	"units": {
+		"api": {
+			"dir": "packages/api",
+			"notes": "Also verify web when an exported type in packages/api/src/types.ts changes: web imports those types.",
+			"checks": [
+				{
+					"kind": "typecheck",
+					"run": "./node_modules/.bin/tsc --noEmit",
+					"parser": "tsc"
+				},
+				{
+					"kind": "test",
+					"run": "node --test"
+				}
+			]
+		},
+		"web": {
+			"dir": "apps/web",
+			"checks": [
+				{
+					"kind": "typecheck",
+					"run": "./node_modules/.bin/tsc --noEmit",
+					"parser": "tsc"
+				}
+			]
+		}
+	}
+}

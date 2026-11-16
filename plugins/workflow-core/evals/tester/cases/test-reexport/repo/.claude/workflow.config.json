@@ -1,0 +1,11 @@
+{
+	"version": 1,
+	"app": {
+		"checks": [
+			{
+				"kind": "test",
+				"run": "node --test"
+			}
+		]
+	}
+}

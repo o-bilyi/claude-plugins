@@ -1,0 +1,2 @@
+src/format.ts(1,29): error TS7006: Parameter 'value' implicitly has an 'any' type.
+src/legacy.ts(6,2): error TS2304: Cannot find name 'jQuery'.

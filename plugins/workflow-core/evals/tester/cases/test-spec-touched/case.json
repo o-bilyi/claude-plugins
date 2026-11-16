@@ -1,0 +1,22 @@
+{
+	"name": "test-spec-touched",
+	"description": "The change adds a test to test/slug.test.mjs that fails (slugify does not transliterate). The failing spec is touched: caused. The untouched math test passes.",
+	"check": {
+		"app/test": {
+			"status": "fail"
+		}
+	},
+	"expected": {
+		"result": {
+			"caused": 1,
+			"unsure": 0,
+			"preExisting": 0
+		},
+		"failures": [
+			{
+				"match": "slug\\.test|transliterates",
+				"tag": "caused"
+			}
+		]
+	}
+}

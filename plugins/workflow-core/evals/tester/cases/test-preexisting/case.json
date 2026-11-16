@@ -1,0 +1,18 @@
+{
+	"name": "test-preexisting",
+	"description": "The change adds lerp to src/math.mjs and its test (both pass). test/dates.test.mjs already failed before the change (isWeekend bug in untouched src/dates.mjs) and imports nothing touched: pre-existing, RESULT: PASS.",
+	"check": {
+		"app/test": {
+			"status": "fail"
+		}
+	},
+	"expected": {
+		"result": "PASS",
+		"failures": [
+			{
+				"match": "dates\\.test|weekend",
+				"tag": "pre-existing"
+			}
+		]
+	}
+}

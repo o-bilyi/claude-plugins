@@ -1,0 +1,8 @@
+{
+	"name": "no-config",
+	"description": "Without a workflow config the tester runs nothing, lists the skip and passes.",
+	"expected": {
+		"result": "PASS",
+		"skipped": ["no workflow config"]
+	}
+}

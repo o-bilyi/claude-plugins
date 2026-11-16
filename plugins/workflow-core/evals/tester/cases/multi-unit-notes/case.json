@@ -1,0 +1,49 @@
+{
+	"name": "multi-unit-notes",
+	"description": "Monorepo with units api and web. The change renames Task.title to name in packages/api/src/types.ts and breaks handler.ts (caused). api's note says to also verify web for type changes: web (untouched) now fails on task.title (unsure). An old api test fails on untouched legacy code (pre-existing).",
+	"stubs": {
+		"packages/api": ["tsc"],
+		"apps/web": ["tsc"]
+	},
+	"after": {
+		"packages/api/tsc": {
+			"text": "src/handler.ts(5,2): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+			"code": 2
+		},
+		"apps/web/tsc": {
+			"text": "src/page.tsx(4,67): error TS2339: Property 'title' does not exist on type 'Task'.\n",
+			"code": 2
+		}
+	},
+	"check": {
+		"api/typecheck": {
+			"status": "fail",
+			"caused": 1,
+			"preExisting": 0
+		},
+		"api/test": {
+			"status": "fail"
+		}
+	},
+	"expected": {
+		"result": {
+			"caused": 1,
+			"unsure": 1,
+			"preExisting": 1
+		},
+		"failures": [
+			{
+				"match": "handler\\.ts.*TS2322",
+				"tag": "caused"
+			},
+			{
+				"match": "page\\.tsx.*TS2339",
+				"tag": "unsure"
+			},
+			{
+				"match": "legacy\\.test|zero-padded",
+				"tag": "pre-existing"
+			}
+		]
+	}
+}

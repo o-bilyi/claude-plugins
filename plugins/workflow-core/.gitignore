@@ -1,0 +1,5 @@
+.DS_Store
+.claude/
+!evals/implementer/cases/*/repo/.claude/
+!evals/tester/cases/*/repo/.claude/
+evals/results/

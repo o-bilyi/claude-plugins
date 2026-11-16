@@ -1,0 +1,11 @@
+{
+	"name": "baseline-300-plus-1",
+	"description": "Baseline of 300 old errors across 60 legacy files; the change adds exactly one new error in src/report/totals.ts. Exactly 1 caused, 300 pre-existing.",
+	"stubs": { ".": ["tsc"] },
+	"preflight": true,
+	"check": { "app/typecheck": { "status": "fail", "caused": 1, "preExisting": 300 } },
+	"expected": {
+		"result": { "caused": 1, "unsure": 0, "preExisting": 300 },
+		"failures": [{ "match": "totals\\.ts.*TS2322", "tag": "caused" }]
+	}
+}

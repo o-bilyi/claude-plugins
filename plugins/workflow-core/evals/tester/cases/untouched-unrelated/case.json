@@ -1,0 +1,8 @@
+{
+	"name": "untouched-unrelated",
+	"description": "No baseline. The change only rewrites the body of formatPrice in src/price.ts. Three errors in untouched files have nothing to do with it, one with a near-miss name (priceLabel on Row, defined in untouched src/table.ts). All pre-existing: RESULT: PASS, no needless unsure.",
+	"stubs": { ".": ["tsc"] },
+	"after": { "./tsc": { "out": "after-tsc.txt", "code": 2 } },
+	"check": { "app/typecheck": { "status": "pass", "caused": 0, "preExisting": 3, "untouched": 3 } },
+	"expected": { "result": "PASS" }
+}

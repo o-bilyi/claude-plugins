@@ -1,0 +1,16 @@
+{
+	"name": "caused-touched-file",
+	"description": "A new type error in the touched file is caused.",
+	"stubs": { ".": ["tsc"] },
+	"after": {
+		"./tsc": {
+			"text": "src/a.ts(3,7): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+			"code": 2
+		}
+	},
+	"check": { "app/typecheck": { "status": "fail", "caused": 1, "preExisting": 0, "untouched": 0 } },
+	"expected": {
+		"result": { "caused": 1, "unsure": 0, "preExisting": 0 },
+		"failures": [{ "match": "src/a\\.ts.*TS2322", "tag": "caused" }]
+	}
+}

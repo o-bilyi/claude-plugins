@@ -1,0 +1,28 @@
+[96msrc/a.ts[0m:[93m1[0m:[93m14[0m - [91merror[0m[90m TS2322: [0mType 'string' is not assignable to type 'number'.
+
+[7m1[0m export const count: number = 'one';
+[7m [0m [91m             ~~~~~[0m
+
+[96msrc/a.ts[0m:[93m2[0m:[93m14[0m - [91merror[0m[90m TS2322: [0mType 'string' is not assignable to type 'number'.
+
+[7m2[0m export const again: number = 'one';
+[7m [0m [91m             ~~~~~[0m
+
+[96msrc/a.ts[0m:[93m3[0m:[93m1[0m - [91merror[0m[90m TS2304: [0mCannot find name 'missingFn'.
+
+[7m3[0m missingFn();
+[7m [0m [91m~~~~~~~~~[0m
+
+[96msrc/nested/deep/b.ts[0m:[93m3[0m:[93m14[0m - [91merror[0m[90m TS2322: [0mType '{ mode: { kind: string; }; }' is not assignable to type 'Options'.
+  The types of 'mode.kind' are incompatible between these types.
+    Type 'string' is not assignable to type '"a" | "b"'.
+
+[7m3[0m export const options: Options = raw;
+[7m [0m [91m             ~~~~~~~[0m
+
+
+Found 4 errors in 2 files.
+
+Errors  Files
+     3  src/a.ts[90m:1[0m
+     1  src/nested/deep/b.ts[90m:3[0m

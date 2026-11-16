@@ -1,0 +1,49 @@
+{
+	"version": "8.57.1",
+	"cases": {
+		"default": {
+			"args": [
+				"--no-eslintrc",
+				"--rule",
+				"{\"no-unused-vars\":\"error\",\"no-debugger\":\"error\"}",
+				"-f",
+				"json",
+				"src"
+			],
+			"exitCode": 1
+		},
+		"clean": {
+			"args": [
+				"--no-eslintrc",
+				"--rule",
+				"{\"no-unused-vars\":\"error\",\"no-debugger\":\"error\"}",
+				"-f",
+				"json",
+				"src/ok.js"
+			],
+			"exitCode": 0
+		},
+		"default-shifted": {
+			"args": [
+				"--no-eslintrc",
+				"--rule",
+				"{\"no-unused-vars\":\"error\",\"no-debugger\":\"error\"}",
+				"-f",
+				"json",
+				"src"
+			],
+			"exitCode": 1
+		},
+		"clean-shifted": {
+			"args": [
+				"--no-eslintrc",
+				"--rule",
+				"{\"no-unused-vars\":\"error\",\"no-debugger\":\"error\"}",
+				"-f",
+				"json",
+				"src/ok.js"
+			],
+			"exitCode": 0
+		}
+	}
+}

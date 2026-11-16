@@ -1,0 +1,22 @@
+{
+	"name": "test-imports-touched",
+	"description": "The change adds a discount option to cartTotal in src/cart.mjs and rounds the result. The untouched spec test/cart.test.mjs imports it and now fails: unsure.",
+	"check": {
+		"app/test": {
+			"status": "fail"
+		}
+	},
+	"expected": {
+		"result": {
+			"caused": 0,
+			"unsure": 1,
+			"preExisting": 0
+		},
+		"failures": [
+			{
+				"match": "cart\\.test|cartTotal keeps cents",
+				"tag": "unsure"
+			}
+		]
+	}
+}
