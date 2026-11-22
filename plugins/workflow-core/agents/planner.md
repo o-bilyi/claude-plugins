@@ -50,6 +50,8 @@ Once the user confirms the answers, write a plan with:
 - **Units, repos and files** affected, per repo.
 - **Ordered steps**, each small enough to review on its own. Name the project skill to follow in each step
   where one applies.
+- **Structure:** new files, components and hooks, one responsibility each. When a step adds a new concern to
+  a unit that already owns another, plan the extraction first, as its own step.
 - **Tests** to add or update, and the checks per unit (the unit notes may add another unit to verify).
 - **Decisions** made in the interview, and **open questions** stated as questions, not guesses.
 - A final `## Execution` section, verbatim: "Continue with `workflow-core:feature-workflow` from step 2

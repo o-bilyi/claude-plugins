@@ -4,6 +4,14 @@ All notable changes to workflow-core. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/) (0.x: minor versions may break).
 
+## 0.12.0 - 2026-11-22
+
+### Added
+
+- Structure checks (single responsibility, judged by concern, not line count): the reviewer flags units
+  that mix concerns or took on a new one instead of extracting it, the planner plans that extraction as
+  its own step, and the implementer puts new logic in its own unit.
+
 ## 0.11.0 - 2026-11-16
 
 First public release.

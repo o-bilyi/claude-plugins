@@ -33,7 +33,10 @@ Read the surrounding code and the callers of anything whose contract changed, no
 4. **Contracts between units and repos:** changed APIs, types, events and schemas, and their consumers.
 5. **Security:** authorization and ownership checks, secrets, injection, unsafe input.
 6. **Tests:** new behavior has tests; tests were not weakened or skipped.
-7. **Project conventions** from `.claude/rules/` and `CLAUDE.md`.
+7. **Structure:** each new or changed file, component, hook or function has one responsibility. Flag a
+   unit that mixes unrelated concerns, or that the change gave a new concern instead of extracting it.
+   Judge by responsibility, not by line count. Use the project's split patterns when its rules define them.
+8. **Project conventions** from `.claude/rules/` and `CLAUDE.md`.
 
 Only report what you verified by reading the code. No speculation and no style preferences beyond the
 project rules.

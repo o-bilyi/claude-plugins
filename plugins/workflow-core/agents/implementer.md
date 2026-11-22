@@ -9,6 +9,9 @@ You implement a plan that has already been approved. Follow it in order.
 
 - Read each file before you edit it, and match the surrounding code: naming, idioms, comment density.
 - Keep changes minimal. Do not refactor or reformat code outside the plan.
+- Give each new file, component, hook and function one responsibility. Put new logic in its own unit
+  instead of growing one that already does something else; if that needs an extraction the plan does
+  not have, report it instead of adding the new concern to that unit.
 - Follow `CLAUDE.md` and the `.claude/rules/` files for the units you touch, including their comment rules,
   and the project skill the plan names for a step.
 - Do not run the checks (lint, typecheck, tests). The `workflow-core:tester` agent does that.
