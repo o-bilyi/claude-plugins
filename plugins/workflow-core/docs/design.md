@@ -164,6 +164,24 @@ goes straight to preflight.
   segment (split on newlines, `;`, `&&`, `||`, `&`, `|`, parentheses, outside quotes). A `cwd` limits a
   rule to commands run from, `cd`-ed into, or naming that dir.
 
+## 6.1 Docs check
+
+Optional, like every project fact: no `docs` section, no check. The split of work follows design rule 1.
+`lib/docs.mjs` decides deterministically what the change still needs (stale areas, uncovered files, new
+scope without a change record); the `documenter` agent writes the prose.
+
+- **Areas own the mapping.** The code each area covers is the `code_paths` list in the area doc's own
+  frontmatter, not in the config, so the doc and its mapping change together and cannot drift apart.
+- **New scope is a diff of coverage.** A file is new scope when the areas cover it now but did not at the
+  base (the branch's merge base, or `HEAD` for a commit). That catches a new feature without guessing from
+  file names: writing its area doc, or widening `code_paths`, is what marks it new.
+- **Written once, at the end.** Docs follow the code after it is approved, so fix rounds never rewrite
+  them. `feature-workflow` does not write docs; `/workflow-core:docs` runs at commit or PR time.
+- **Where it blocks.** `enforceAt: "pr"` (default) lets work-in-progress commits through with a warning
+  and requires docs for the branch in `/workflow-core:pr` and CI, which suits squash-merged PRs.
+  `enforceAt: "commit"` blocks each commit in the Bash guard. A `Docs-Skip: <reason>` trailer is the
+  explicit, reviewable way out.
+
 ## 7. State on disk
 
 Per repo, under `$(git -C <repo> rev-parse --git-path workflow-core)`:

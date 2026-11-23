@@ -32,6 +32,10 @@ For each touched repo:
    instruction; never commit on the base branch.
 2. **Verify:** run `node "<wc>" check --since-base <units of this repo>`. If anything fails, report it and ask
    whether to continue.
+   **Docs:** when `node "<wc>" get docs` prints a docs section, run `node "<wc>" docs`. If it reports the
+   docs out of date, follow `/workflow-core:docs` (it runs the `workflow-core:documenter` agent), and commit
+   the docs with the change before you push. With `docs.mode` `require` do not open the PR until the
+   check passes or the user gives a reason for the skip trailer.
 3. **Ticket** (only with a `ticketPattern`): from the arguments, else the branch name (case-insensitive
    match), else `git -C <repo> log --oneline -20`; if none, ask. Write it in the case the pattern uses
    (`proj-12` becomes `PROJ-12` for `PROJ-[0-9]+`).

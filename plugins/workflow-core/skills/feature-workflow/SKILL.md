@@ -77,4 +77,6 @@ is reached, or when the implementer reports that the right fix changes the plan.
 - Anything `implementer` flagged as uncertain.
 - Open questions.
 
-Do not commit, push or open PRs. If the user wants a PR, tell them to run `/workflow-core:pr`.
+Do not commit, push or open PRs, and do not write the project docs here: the change may still be fixed
+after the report. If the user wants a PR, tell them to run `/workflow-core:pr`. When the config has a
+`docs` section, the docs are written once the user commits or opens the PR (`/workflow-core:docs`).
