@@ -175,7 +175,7 @@ describe('contracts', () => {
 		assert.ok(config.units.app.checks.every(c => c.kind === 'test' || c.parser));
 	});
 
-	test('plugin.json is version 0.11.0', () => {
-		assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.11.0');
+	test('plugin.json is version 0.13.0', () => {
+		assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.13.0');
 	});
 });

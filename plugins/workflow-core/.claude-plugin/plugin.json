@@ -1,6 +1,6 @@
 {
 	"name": "workflow-core",
-	"version": "0.11.0",
+	"version": "0.13.0",
 	"license": "MIT",
 	"description": "Config-driven plan → preflight → implement → test → review → PR workflow for single repos, monorepos and multi-repo workspaces",
 	"author": {

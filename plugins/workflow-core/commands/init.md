@@ -65,7 +65,16 @@ always runs per repo: `git -C <repo> …`.
    - `protectedPaths` for generated or build output (`dist/**`, `ios/**` from prebuild, `.nx/**`) and
      committed migrations (`when: "tracked"`).
 
-8. **Write and check:** write `.claude/workflow.config.json` (tabs; start from
+8. **Docs** (optional): ask whether the project keeps docs that must follow the code. Skip this step and
+   leave `docs` out when it does not. Otherwise look for area or feature docs (`docs/`, ADR folders,
+   files with `code_paths` frontmatter) and add a `docs` section: `areas` (glob of the docs that describe
+   how things work now; each lists its code in a `code_paths` frontmatter list), `changes` and
+   `newChange` (the folder of per-change records and the files a new one needs, e.g.
+   `["README.md", "adr/*.md"]`), `guide` (the file with the docs writing rules), `ignore` (globs that never
+   need docs: tests, lockfiles, generated code), `mode` (`warn` or `require`) and `enforceAt` (`pr` or
+   `commit`). Suggest `requireCoverage: false` while some code has no area doc yet.
+
+9. **Write and check:** write `.claude/workflow.config.json` (tabs; start from
    `${CLAUDE_PLUGIN_ROOT}/templates/workflow.config.json`; drop empty parts). Run `node "<wc>" doctor` and
    `node "<wc>" table`. Fix any validation error and run them again. Show the file, the table and the doctor
    output, then ask the user to review both and commit the file.

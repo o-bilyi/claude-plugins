@@ -7,10 +7,11 @@ Each project supplies its facts in `.claude/workflow.config.json`; the full desi
 
 ## What it provides
 
-- **Agents:** `planner` (opus, read-only; the main session follows it), `implementer` (haiku),
-  `tester` (haiku; ends with `RESULT:`), `reviewer` (sonnet; ends with `REVIEW:`).
+- **Agents:** `planner` (opus, read-only; the main session follows it), `implementer` (sonnet),
+  `tester` (haiku; ends with `RESULT:`), `reviewer` (sonnet; ends with `REVIEW:`), `documenter` (sonnet;
+  ends with `DOCS:`).
 - **Skills:** `feature-workflow` (the whole loop), `verify` (checks for touched units), `pr` (one PR per
-  touched repo).
+  touched repo), `docs` (bring the project docs in line before a commit or PR; see [Docs](#docs)).
 - **Command:** `/workflow-core:init` inspects the project and writes a v1 config.
 - **Hooks:** guards for protected files and commands (PreToolUse), formatting (PostToolUse),
   verification of touched units (Stop), repo status (SessionStart). See [Hook behavior](#hook-behavior).
@@ -48,6 +49,7 @@ to write a new one.
 | `reviewers`                    | `[]`                                     | `{agent, paths}`: extra reviewer agents when their path prefixes are touched                       |
 | `planner.extraChecklist`       | `[]`                                     | extra interview items                                                                              |
 | `guards`                       | –                                        | `protectedPaths` `{glob, when?: "tracked", message}`, `blockedCommands` `{regex, cwd?, message}`   |
+| `docs`                         | – (off)                                  | optional docs check; see [Docs](#docs)                                                             |
 
 **Unit:** `dir` (required), `triggers` (path prefixes from the project root; default `<dir>/`, `""` = all),
 `checks`, `stopHook` (default `true`), `notes` (prose for the planner and tester), `format`.
@@ -86,6 +88,50 @@ a touched file with an `extensions.changed` extension, and runs only their check
 Units run in parallel and checks run in order. A unit whose fingerprint (HEAD, its touched entries,
 its resolved config) matches the last passing run is skipped. A check whose tool is missing (first
 token contains `/` and is not executable) is skipped and reported, and does not fail the unit.
+
+## Docs
+
+Optional. A project without a `docs` section gets no docs check at all. With one, the plugin keeps
+"area" docs (how each part works now) in step with the code, and asks for a change record when the
+change adds scope no area covered before.
+
+```json
+"docs": {
+	"mode": "require",
+	"enforceAt": "pr",
+	"areas": "docs/areas/*.md",
+	"changes": "docs/features",
+	"newChange": ["README.md", "adr/*.md"],
+	"guide": "docs/README.md",
+	"ignore": ["**/*.test.ts", "**/_generated/**", "pnpm-lock.yaml"],
+	"requireCoverage": false
+}
+```
+
+| Field             | Default         | Meaning                                                                                         |
+| ----------------- | --------------- | ----------------------------------------------------------------------------------------------- |
+| `areas`           | required        | glob of the area docs; each lists its code in a `code_paths` frontmatter list of globs          |
+| `mode`            | `warn`          | `warn` reports only; `require` fails `wc.mjs docs` and blocks where it is enforced              |
+| `enforceAt`       | `pr`            | `pr`: commits only warn, `/workflow-core:pr` and CI require; `commit`: the guard blocks commits |
+| `changes`         | –               | folder of per-change records (`<changes>/<slug>/`)                                              |
+| `newChange`       | `["README.md"]` | globs a change folder needs when the change adds new scope (needs `changes`)                    |
+| `guide`           | –               | the project's docs writing rules, read by the documenter                                        |
+| `ignore`          | `[]`            | globs that never need docs                                                                      |
+| `requireCoverage` | `true`          | changed code that no area covers fails the check; `false` while areas are still being written   |
+| `skipTrailer`     | `Docs-Skip`     | a `Docs-Skip: <reason>` line in a commit message skips the check for that commit or branch      |
+
+What the check asks for, given the changed files (minus doc files and `ignore`):
+
+- **Stale area:** an area whose `code_paths` match a changed file must be changed too.
+- **Uncovered** (with `requireCoverage`): a changed file no area covers must be added to one.
+- **New scope:** files covered now but not by the areas at the base (a new area, or wider `code_paths`)
+  need a touched `<changes>/<slug>/` folder holding every `newChange` file.
+
+Docs are written once, when the work is done: `feature-workflow` never writes them. The `docs` skill runs
+when the user commits or opens a PR (`pr` calls it), and runs the `documenter` agent for what is missing.
+The guard on `git commit` checks the staged files: with `enforceAt: "commit"` and `mode: "require"` it
+blocks the commit, otherwise it shows a warning. Add `node <wc> docs` to CI to cover commits made outside
+Claude.
 
 ## Missing config
 
@@ -180,8 +226,10 @@ node --test tests/
 | `check [unit…] [--stop] [--since-base]`                        | runs checks (default: touched units); `--stop` uses the Stop hook's selection |
 | `preflight [unit…] [--force]`                                  | branch, ticket match, dirty files, then `baseline save`                       |
 | `baseline save [unit…] [--force]` / `status` / `clear [unit…]` | records, shows or removes the baseline                                        |
+| `docs [--staged]`                                              | docs check for the branch (default) or the staged commit; see [Docs](#docs)   |
 
-Exit codes: 0 ok; 1 a check failed (or `get` found no value); 2 invalid config, or a usage error
+Exit codes: 0 ok; 1 a check failed (or `get` found no value, or `docs` found the docs out of date in
+`require` mode); 2 invalid config, or a usage error
 (unknown subcommand, option or unit); 3 no config, or a config without `"version": 1`.
 
 To run it without permission prompts, add this allow rule to the project's settings:

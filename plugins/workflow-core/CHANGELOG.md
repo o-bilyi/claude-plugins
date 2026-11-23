@@ -4,6 +4,32 @@ All notable changes to workflow-core. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/) (0.x: minor versions may break).
 
+## 0.13.0 - 2026-11-23
+
+### Added
+
+- Optional docs check (`docs` config section). Area docs list the code they cover in `code_paths`
+  frontmatter; `wc.mjs docs [--staged]` reports area docs a change made stale, code no area covers, and
+  new scope without a change record (README, ADR). `mode` (`warn` or `require`) and `enforceAt` (`pr` or
+  `commit`) set how strict it is; a `Docs-Skip: <reason>` commit trailer skips it.
+- `documenter` agent and `docs` skill: write the docs once, when the change is done, before a commit or PR.
+- The Bash guard checks the staged files on `git commit`: it blocks with `enforceAt: "commit"` in
+  `require` mode and warns otherwise. `/workflow-core:pr` runs the docs check before pushing, and
+  `/workflow-core:init` offers to set it up.
+
+### Changed
+
+- The implementer runs on sonnet instead of haiku, matching the reviewer, so new logic goes into its
+  own unit (the 0.12.0 structure rules) without an extra review round.
+
+## 0.12.0 - 2026-11-22
+
+### Added
+
+- Structure checks (single responsibility, judged by concern, not line count): the reviewer flags units
+  that mix concerns or took on a new one instead of extracting it, the planner plans that extraction as
+  its own step, and the implementer puts new logic in its own unit.
+
 ## 0.11.0 - 2026-11-16
 
 First public release.

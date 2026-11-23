@@ -254,6 +254,50 @@ function validateProcess(p, check) {
 	return { maxRounds, preflight: { branchTicket, baseline } };
 }
 
+const DOCS_MODES = ['warn', 'require'];
+const DOCS_ENFORCE_AT = ['commit', 'pr'];
+
+function validateDocs(d, check) {
+	if (!check(isObject(d), 'docs must be an object')) return undefined;
+	check(isNonEmptyString(d.areas), 'docs.areas must be a glob string (e.g. "docs/areas/*.md")');
+	check(
+		optional(d.mode, v => DOCS_MODES.includes(v)),
+		`docs.mode must be one of ${DOCS_MODES.join(', ')}`
+	);
+	check(
+		optional(d.enforceAt, v => DOCS_ENFORCE_AT.includes(v)),
+		`docs.enforceAt must be one of ${DOCS_ENFORCE_AT.join(', ')}`
+	);
+	check(optional(d.changes, isNonEmptyString), 'docs.changes must be a non-empty string');
+	check(
+		optional(d.newChange, isNonEmptyStringArray),
+		'docs.newChange must be a non-empty array of glob strings'
+	);
+	check(
+		d.newChange === undefined || d.changes !== undefined,
+		'docs.newChange requires docs.changes'
+	);
+	check(optional(d.ignore, isStringArray), 'docs.ignore must be an array of glob strings');
+	check(optional(d.guide, isNonEmptyString), 'docs.guide must be a non-empty string');
+	check(optional(d.requireCoverage, isBoolean), 'docs.requireCoverage must be a boolean');
+	check(
+		optional(d.skipTrailer, v => isNonEmptyString(v) && /^[A-Za-z][\w-]*$/.test(v)),
+		'docs.skipTrailer must be a trailer name like "Docs-Skip"'
+	);
+	const dir = v => (isNonEmptyString(v) ? normalizeDir(v) : undefined);
+	return compact({
+		mode: d.mode ?? 'warn',
+		enforceAt: d.enforceAt ?? 'pr',
+		areas: d.areas,
+		changes: dir(d.changes),
+		newChange: d.changes === undefined ? undefined : (d.newChange ?? ['README.md']),
+		ignore: d.ignore ?? [],
+		guide: d.guide,
+		requireCoverage: d.requireCoverage ?? true,
+		skipTrailer: d.skipTrailer ?? 'Docs-Skip',
+	});
+}
+
 export function normalizeConfig(raw) {
 	if (!isObject(raw)) {
 		throw new ConfigError(`${CONFIG_PATH} is invalid:\n- top level must be a JSON object`);
@@ -312,6 +356,7 @@ export function normalizeConfig(raw) {
 	const reviewers = validateReviewers(raw.reviewers ?? [], check);
 	const planner = validatePlanner(raw.planner ?? {}, check);
 	const guards = validateGuards(raw.guards ?? {}, check);
+	const docs = raw.docs === undefined ? undefined : validateDocs(raw.docs, check);
 
 	fail();
 
@@ -329,6 +374,7 @@ export function normalizeConfig(raw) {
 			reviewers,
 			planner,
 			guards,
+			docs,
 		})
 	);
 }

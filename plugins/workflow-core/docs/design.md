@@ -164,6 +164,24 @@ goes straight to preflight.
   segment (split on newlines, `;`, `&&`, `||`, `&`, `|`, parentheses, outside quotes). A `cwd` limits a
   rule to commands run from, `cd`-ed into, or naming that dir.
 
+## 6.1 Docs check
+
+Optional, like every project fact: no `docs` section, no check. The split of work follows design rule 1.
+`lib/docs.mjs` decides deterministically what the change still needs (stale areas, uncovered files, new
+scope without a change record); the `documenter` agent writes the prose.
+
+- **Areas own the mapping.** The code each area covers is the `code_paths` list in the area doc's own
+  frontmatter, not in the config, so the doc and its mapping change together and cannot drift apart.
+- **New scope is a diff of coverage.** A file is new scope when the areas cover it now but did not at the
+  base (the branch's merge base, or `HEAD` for a commit). That catches a new feature without guessing from
+  file names: writing its area doc, or widening `code_paths`, is what marks it new.
+- **Written once, at the end.** Docs follow the code after it is approved, so fix rounds never rewrite
+  them. `feature-workflow` does not write docs; `/workflow-core:docs` runs at commit or PR time.
+- **Where it blocks.** `enforceAt: "pr"` (default) lets work-in-progress commits through with a warning
+  and requires docs for the branch in `/workflow-core:pr` and CI, which suits squash-merged PRs.
+  `enforceAt: "commit"` blocks each commit in the Bash guard. A `Docs-Skip: <reason>` trailer is the
+  explicit, reviewable way out.
+
 ## 7. State on disk
 
 Per repo, under `$(git -C <repo> rev-parse --git-path workflow-core)`:
@@ -185,13 +203,15 @@ under the unit's triggers, the unit's resolved config and the baseline.
 | Agent                                        | Model (frontmatter) | Tools                       | Contract                     |
 | -------------------------------------------- | ------------------- | --------------------------- | ---------------------------- |
 | planner (procedure the main session follows) | opus                | read-only + AskUserQuestion | §5 step 1                    |
-| implementer                                  | haiku               | edit                        | prohibitions below; fix mode |
+| implementer                                  | sonnet              | edit                        | prohibitions below; fix mode |
 | tester                                       | haiku               | read-only + Bash            | `RESULT:` line               |
 | reviewer                                     | sonnet              | read-only + Bash            | `REVIEW:` line               |
 
-The implementer runs on haiku because the plan (opus, main session) carries the reasoning. The round
-limit catches a model that can't finish, and the evals (§9) check the choice. A project that needs a
-different model overrides the agent with its own.
+The implementer runs on sonnet. The plan (opus, main session) carries the reasoning, and haiku passed
+the implementer evals (§9), but those cases do not test the structure rules: putting new logic in its
+own hook or component instead of growing an existing one. A weaker writer there costs a review round
+each time, so the implementer matches the reviewer. The round limit catches a model that can't finish.
+A project that needs a different model overrides the agent with its own.
 
 Implementer prohibitions: no dependency installs or changes unless the plan says so; never hand-edit
 lockfiles, and report any lockfile change; never weaken, skip or delete tests; no commits, branches or
@@ -210,9 +230,9 @@ exact `RESULT:` line. Evals call the real `claude` CLI, so they run on demand, n
 
 **Implementer** (7 cases × 3 runs × haiku and sonnet). The cases are small tasks with an approved
 plan, some with a seeded follow-up failure. Measured: rounds to PASS, tests weakened (must be 0),
-edits outside the plan. Both models passed every grader in every run, with 0 safety violations, so
-the implementer stays on haiku. Both hit the ceiling, so harder cases are needed before the suite can
-separate models.
+edits outside the plan. Both models passed every grader in every run, with 0 safety violations. Both
+hit the ceiling, so harder cases (including structure) are needed before the suite can separate models;
+until then the implementer runs on sonnet (§8).
 
 **Tester** (13 cases on the real `wc.mjs check`, with stubbed tsc/eslint and real `node --test`).
 Measured: false PASS (must be 0), tag accuracy (target ≥ 90%), exact `RESULT:` format (100%). In the

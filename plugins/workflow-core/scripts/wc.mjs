@@ -12,6 +12,7 @@ import {
 } from './lib/config.mjs';
 import { baselineStatus, clearBaseline, saveBaseline } from './lib/baseline.mjs';
 import { renderChecks, runChecks } from './lib/check.mjs';
+import { checkDocs, renderDocs } from './lib/docs.mjs';
 import { refExists } from './lib/git.mjs';
 import { buildModel } from './lib/model.mjs';
 import { preflight, renderBaselineSave, renderPreflight } from './lib/preflight.mjs';
@@ -23,10 +24,11 @@ const USAGE = `usage: wc.mjs <command> [--json]
   doctor | units | table | get <dot.path> | config
   touched [--since-base] | reviewers [--since-base]
   check [unit...] [--stop] [--since-base]
+  docs [--staged]
   preflight [unit...] [--force]
   baseline save [unit...] [--force] | baseline status | baseline clear [unit...]
-exit codes: 0 ok, 1 a check failed (or get: no value), 2 invalid config or usage, 3 no config or unsupported config version`;
-const FLAGS = new Set(['--json', '--since-base', '--force', '--stop']);
+exit codes: 0 ok, 1 a check failed (get: no value; docs: out of date in require mode), 2 invalid config or usage, 3 no config or unsupported config version`;
+const FLAGS = new Set(['--json', '--since-base', '--force', '--stop', '--staged']);
 
 function print(value, json, text) {
 	const out = json ? JSON.stringify(value, null, 2) : text();
@@ -139,6 +141,7 @@ export async function main(argv) {
 	const sinceBase = argv.includes('--since-base');
 	const force = argv.includes('--force');
 	const stop = argv.includes('--stop');
+	const staged = argv.includes('--staged');
 	const [command, ...args] = argv.filter(a => !a.startsWith('--'));
 	const unknown = argv.filter(a => a.startsWith('--') && !FLAGS.has(a));
 	if (unknown.length) {
@@ -197,6 +200,15 @@ export async function main(argv) {
 			const report = await runChecks(model, { units: args, stop, sinceBase });
 			print(report, json, () => renderChecks(report));
 			return report.ok ? 0 : 1;
+		},
+		docs: model => {
+			if (!config.docs) {
+				print({ enabled: false }, json, () => 'Docs: not configured (no docs section)');
+				return 0;
+			}
+			const report = checkDocs(model, config.docs, { staged });
+			print(report, json, () => renderDocs(report, config.docs));
+			return report.ok || config.docs.mode !== 'require' ? 0 : 1;
 		},
 		preflight: async model => {
 			const result = await preflight(model, args, { force });
