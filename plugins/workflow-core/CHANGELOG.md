@@ -17,6 +17,11 @@ All notable changes to workflow-core. The format follows
   `require` mode and warns otherwise. `/workflow-core:pr` runs the docs check before pushing, and
   `/workflow-core:init` offers to set it up.
 
+### Changed
+
+- The implementer runs on sonnet instead of haiku, matching the reviewer, so new logic goes into its
+  own unit (the 0.12.0 structure rules) without an extra review round.
+
 ## 0.12.0 - 2026-11-22
 
 ### Added

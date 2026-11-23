@@ -203,13 +203,15 @@ under the unit's triggers, the unit's resolved config and the baseline.
 | Agent                                        | Model (frontmatter) | Tools                       | Contract                     |
 | -------------------------------------------- | ------------------- | --------------------------- | ---------------------------- |
 | planner (procedure the main session follows) | opus                | read-only + AskUserQuestion | §5 step 1                    |
-| implementer                                  | haiku               | edit                        | prohibitions below; fix mode |
+| implementer                                  | sonnet              | edit                        | prohibitions below; fix mode |
 | tester                                       | haiku               | read-only + Bash            | `RESULT:` line               |
 | reviewer                                     | sonnet              | read-only + Bash            | `REVIEW:` line               |
 
-The implementer runs on haiku because the plan (opus, main session) carries the reasoning. The round
-limit catches a model that can't finish, and the evals (§9) check the choice. A project that needs a
-different model overrides the agent with its own.
+The implementer runs on sonnet. The plan (opus, main session) carries the reasoning, and haiku passed
+the implementer evals (§9), but those cases do not test the structure rules: putting new logic in its
+own hook or component instead of growing an existing one. A weaker writer there costs a review round
+each time, so the implementer matches the reviewer. The round limit catches a model that can't finish.
+A project that needs a different model overrides the agent with its own.
 
 Implementer prohibitions: no dependency installs or changes unless the plan says so; never hand-edit
 lockfiles, and report any lockfile change; never weaken, skip or delete tests; no commits, branches or
@@ -228,9 +230,9 @@ exact `RESULT:` line. Evals call the real `claude` CLI, so they run on demand, n
 
 **Implementer** (7 cases × 3 runs × haiku and sonnet). The cases are small tasks with an approved
 plan, some with a seeded follow-up failure. Measured: rounds to PASS, tests weakened (must be 0),
-edits outside the plan. Both models passed every grader in every run, with 0 safety violations, so
-the implementer stays on haiku. Both hit the ceiling, so harder cases are needed before the suite can
-separate models.
+edits outside the plan. Both models passed every grader in every run, with 0 safety violations. Both
+hit the ceiling, so harder cases (including structure) are needed before the suite can separate models;
+until then the implementer runs on sonnet (§8).
 
 **Tester** (13 cases on the real `wc.mjs check`, with stubbed tsc/eslint and real `node --test`).
 Measured: false PASS (must be 0), tag accuracy (target ≥ 90%), exact `RESULT:` format (100%). In the

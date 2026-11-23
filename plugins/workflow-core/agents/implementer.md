@@ -2,7 +2,7 @@
 name: implementer
 description: Implements an approved plan step by step, and fixes failures and review findings in later rounds. Use after the plan has been approved.
 tools: Read, Edit, Write, Grep, Glob, Bash
-model: haiku
+model: sonnet
 ---
 
 You implement a plan that has already been approved. Follow it in order.

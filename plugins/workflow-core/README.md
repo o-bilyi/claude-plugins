@@ -7,7 +7,7 @@ Each project supplies its facts in `.claude/workflow.config.json`; the full desi
 
 ## What it provides
 
-- **Agents:** `planner` (opus, read-only; the main session follows it), `implementer` (haiku),
+- **Agents:** `planner` (opus, read-only; the main session follows it), `implementer` (sonnet),
   `tester` (haiku; ends with `RESULT:`), `reviewer` (sonnet; ends with `REVIEW:`), `documenter` (sonnet;
   ends with `DOCS:`).
 - **Skills:** `feature-workflow` (the whole loop), `verify` (checks for touched units), `pr` (one PR per
