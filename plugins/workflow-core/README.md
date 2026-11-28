@@ -305,7 +305,7 @@ Run `node scripts/wc.mjs <command> [--json]` from any dir in the project. `CLAUD
 | `reviewers [--since-base]`                                             | `reviewers[]` agents whose paths are touched                                                                                     |
 | `check [unit…] [--stop] [--since-base] [--kind <kind>] [--retry]`      | runs checks (default: touched units); `--kind` runs one kind; `--retry` runs a failed test check again                           |
 | `scope [--plan <file\|->] [--since-base]`                              | touched files that the plan does not name or puts out of scope; exit 1 when there are any. Without `--plan`, the plan of the run |
-| `diffstat [--since-base]`                                              | added and deleted lines per repo, untracked files included                                                                       |
+| `diffstat [--since-base]`                                              | added and deleted lines per repo, untracked files included; a file dirty at the baseline counts from its baseline content        |
 | `preflight [unit…] [--force]`                                          | branch, ticket match, dirty files, then `baseline save`                                                                          |
 | `baseline save [unit…] [--force]` / `status` / `clear [unit…]`         | records, shows or removes the baseline                                                                                           |
 | `docs [--staged]`                                                      | docs check for the branch (default) or the staged commit; see [Docs](#docs)                                                      |

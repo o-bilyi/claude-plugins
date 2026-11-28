@@ -139,6 +139,10 @@ files, it changes the run to full mode and prints `MODE: full`.
 **Diffstat.** `diffstat [--since-base]` counts the added and deleted lines per repo. It also counts the
 lines of untracked files. The report and the simplifier compare it with the size estimate of the plan.
 
+`baseline save` stores the content of each dirty file in the git object database. Thus `diffstat` counts
+a file that was dirty before the task from that content, not from `HEAD`. With `--since-base`, it counts
+from the merge base.
+
 **Writing.** `writing` prints the writing rules for the prompts in one call. These are the STE rules for
 `ste100`, and the project guide when there is one. It works without a config.
 
@@ -405,7 +409,8 @@ agent layer has evals in `evals/`. An eval is a fixture scenario with a known an
 it several times per model. The evals cover only what the model decides. Evals call the real `claude`
 CLI, so they run on demand, never in CI.
 
-All suites use `evals/lib/suite.mjs`. A case has a `repo/`, a `prompt.md` and a `case.json` with graders. It
+All suites use `evals/lib/suite.mjs`. The tester gives its own case check, setup and grading. A case has
+a `repo/`, a `prompt.md` and a `case.json` with graders. It
 can also have a `change/` that the suite copies after the first commit, and a `reference-output.md`.
 `--dry-run reference` checks the graders against the reference output. `--dry-run baseline` checks that
 the graders fail on an empty reply.

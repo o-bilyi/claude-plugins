@@ -6,9 +6,11 @@ in the plugin tests, the Stop hook or CI.
 All runners share `lib/harness.mjs`: CLI parsing, temp git repos, file snapshots, the `claude -p` call
 (env cleanup, 10-minute timeout), JSON result parsing, the job pool and summary number formatting.
 
-The implementer, reviewer and planner suites also share `lib/suite.mjs`: case loading, the graders, the
-decision rule and the summary. Each `run.mjs` only names the agent, its tools, the default models, runs
-and budget, and extra CLI args. The tester has its own runner, because it grades tags, not files.
+All suites also share `lib/suite.mjs`: case loading, the run loop, the dry runs, the results files and
+the progress lines. For the implementer, reviewer and planner it also gives the graders, the decision
+rule and the summary. Each of their `run.mjs` files only names the agent, its tools, the default models,
+runs and budget, and extra CLI args. The tester grades tags, not files. Its `run.mjs` gives its own case check,
+setup, grading, dry-run report and summary to `runSuite`.
 
 | Suite         | Agent       | Cases | Default models | Runs | Cap per run | Worst case |
 | ------------- | ----------- | ----- | -------------- | ---- | ----------- | ---------- |

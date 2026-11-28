@@ -39,10 +39,14 @@ export function refExists(repo, ref) {
 	return Boolean(git(repo, ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`])?.trim());
 }
 
-export function hashObject(repo, files) {
+// `write`: also store the blobs in the object database, so that a later diff can read them.
+export function hashObject(repo, files, { write = false } = {}) {
 	if (files.length === 0) return [];
-	const out = git(repo, ['hash-object', '--stdin-paths'], { input: `${files.join('\n')}\n` });
+	const flags = write ? ['-w'] : [];
+	const out = git(repo, ['hash-object', ...flags, '--stdin-paths'], {
+		input: `${files.join('\n')}\n`,
+	});
 	const hashes = (out ?? '').split('\n').filter(Boolean);
 	if (hashes.length === files.length) return hashes;
-	return files.map(file => git(repo, ['hash-object', '--', file])?.trim() || null);
+	return files.map(file => git(repo, ['hash-object', ...flags, '--', file])?.trim() || null);
 }

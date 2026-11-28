@@ -1,10 +1,10 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { git } from './git.mjs';
+import { git, hashObject } from './git.mjs';
 import { parseCounted } from './parsers.mjs';
 import { PLACEHOLDER, runCommand, safeName, withIncremental } from './run.mjs';
 import { missingTool } from './shell.mjs';
-import { currentEntries, DIRTY_FILE } from './touched.mjs';
+import { currentEntries, DIRTY_FILE, entryPath } from './touched.mjs';
 
 const META_FILE = 'baseline/meta.json';
 
@@ -111,6 +111,9 @@ export async function saveBaseline(model, names = [], { force = false } = {}) {
 	for (const [key, units] of Object.entries(repos)) {
 		const repo = model.repos[key];
 		const entries = currentEntries(repo);
+		// diffstat counts the lines of a dirty file from this content, not from HEAD.
+		const regular = entries.filter(e => !/^(deleted|other|unknown) /.test(e)).map(entryPath);
+		hashObject(repo.path, regular, { write: true });
 		mkdirSync(join(repo.state, 'baseline'), { recursive: true });
 		writeFileSync(join(repo.state, DIRTY_FILE), entries.map(e => `${e}\n`).join(''));
 		const previous = readMeta(repo)?.units ?? {};

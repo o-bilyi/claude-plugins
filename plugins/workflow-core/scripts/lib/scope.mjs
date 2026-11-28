@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { git, refExists } from './git.mjs';
+import { git, hashObject, refExists } from './git.mjs';
+import { entryPath, readDirty } from './touched.mjs';
 
 const OUT_OF_SCOPE = /^#{1,6}\s.*\b(out of scope|non-goals?)\b/i;
 const HEADING = /^#{1,6}\s/;
@@ -125,12 +126,43 @@ function baseRef(repo) {
 	return git(repo.path, ['merge-base', ref, 'HEAD'])?.trim() || null;
 }
 
-// Added and deleted lines per touched file, against HEAD (or the merge base with --since-base).
+// The content of each file that was dirty at the baseline save: path → blob, or '' when the file was
+// absent. A file without a stored blob (a baseline from before 0.14.0) is left out, so it falls back
+// to HEAD.
+function dirtyBlobs(repo) {
+	const blobs = new Map();
+	for (const entry of readDirty(repo.state) ?? []) {
+		const sha = entry.slice(0, entry.indexOf(' '));
+		if (sha === 'deleted') blobs.set(entryPath(entry), '');
+		else if (git(repo.path, ['cat-file', '-e', sha]) !== null) blobs.set(entryPath(entry), sha);
+	}
+	return blobs;
+}
+
+// Lines from the baseline blob to the file now. The empty blob stands for an absent file.
+function blobStat(repo, file, from) {
+	const empty = git(repo.path, ['hash-object', '-w', '--stdin'], { input: '' })?.trim();
+	const to = existsSync(join(repo.path, file))
+		? hashObject(repo.path, [file], { write: true })[0]
+		: empty;
+	const line = git(repo.path, ['diff', '--numstat', from || empty, to])?.split('\n')[0];
+	if (!line) return null;
+	const [added, deleted] = line.split('\t');
+	return {
+		added: added === '-' ? null : Number(added),
+		deleted: deleted === '-' ? null : Number(deleted),
+	};
+}
+
+// Added and deleted lines per touched file, against HEAD (or the merge base with --since-base). A file
+// that was dirty at the baseline save counts from that content, so changes from before the task are
+// left out.
 export function diffstat(model, touchedResult, { sinceBase = false } = {}) {
 	const files = [];
 	for (const [key, result] of Object.entries(touchedResult.repos)) {
 		const repo = model.repos[key];
 		if (result.files.length === 0) continue;
+		const dirty = sinceBase ? new Map() : dirtyBlobs(repo);
 		const from = sinceBase ? (baseRef(repo) ?? 'HEAD') : 'HEAD';
 		const hasHead = refExists(repo.path, 'HEAD');
 		const out = hasHead
@@ -146,8 +178,9 @@ export function diffstat(model, touchedResult, { sinceBase = false } = {}) {
 		}
 		for (const file of result.files) {
 			const abs = join(repo.path, file);
-			let stat = stats.get(file);
-			if (!stat && existsSync(abs)) stat = { added: countLines(abs), deleted: 0 };
+			let stat = dirty.has(file) ? blobStat(repo, file, dirty.get(file)) : stats.get(file);
+			if (!stat && !dirty.has(file) && existsSync(abs))
+				stat = { added: countLines(abs), deleted: 0 };
 			if (!stat) continue;
 			files.push({ file: relative(model.root, abs), ...stat });
 		}

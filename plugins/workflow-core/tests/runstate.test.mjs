@@ -336,6 +336,23 @@ describe('wc.mjs diffstat', () => {
 		assert.equal(out.added, 4);
 		assert.match(wc(p, ['diffstat']).stdout, /total: \+4 -1 in 2 file\(s\)/);
 	});
+
+	test('a file dirty before the task counts from the baseline content', () => {
+		const p = createProject({ config: APP, files: { 'a.ts': 'one\ntwo\n' } });
+		writeFile(p.root, 'a.ts', 'one\ntwo\nthree\n');
+		writeFile(p.root, 'c.ts', 'x\n');
+		assert.equal(wc(p, ['baseline', 'save', '--force']).status, 0);
+		writeFile(p.root, 'a.ts', 'one\nTWO\nthree\n');
+		writeFile(p.root, 'c.ts', 'x\ny\n');
+		const out = json(wc(p, ['diffstat', '--json']));
+		assert.deepEqual(
+			out.files.sort((x, y) => x.file.localeCompare(y.file)),
+			[
+				{ file: 'a.ts', added: 1, deleted: 1 },
+				{ file: 'c.ts', added: 1, deleted: 0 },
+			]
+		);
+	});
 });
 
 describe('wc.mjs check --kind', () => {

@@ -11,8 +11,8 @@ import {
 	writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
 	claudeRecord,
 	cliFail,
@@ -36,7 +36,8 @@ import {
 } from './harness.mjs';
 
 // A graded agent suite: each case is a repo, an optional change and setup, a prompt and graders.
-// The implementer, reviewer and planner evals share it.
+// The implementer, reviewer and planner evals use it as is. The tester gives its own case check,
+// setup, grading, dry-run report and summary (see runSuite).
 
 const TEST_TIMEOUT_MS = 2 * 60 * 1000;
 const PASS_RATE_TARGET = 0.9;
@@ -68,10 +69,10 @@ function lastLine(text) {
 	return (text ?? '').trimEnd().split('\n').at(-1) ?? '';
 }
 
-function loadCases(CASES, glob) {
+function loadCases(CASES, glob, suite) {
 	const globs = glob ? glob.split(',').map(g => globToRegExp(g.trim())) : null;
 	const names = readdirSync(CASES, { withFileTypes: true })
-		.filter(d => d.isDirectory())
+		.filter(d => d.isDirectory() && !d.name.startsWith('.'))
 		.map(d => d.name)
 		.filter(name => !globs || globs.some(re => re.test(name)))
 		.sort();
@@ -79,8 +80,11 @@ function loadCases(CASES, glob) {
 	return names.map(name => {
 		const dir = join(CASES, name);
 		const def = JSON.parse(readFileSync(join(dir, 'case.json'), 'utf8'));
-		for (const g of def.graders) {
-			if (!GRADERS[g.type]) throw new Error(`${name}: unknown grader type ${g.type}`);
+		if (suite.validateCase) suite.validateCase(def, name);
+		else {
+			for (const g of def.graders) {
+				if (!GRADERS[g.type]) throw new Error(`${name}: unknown grader type ${g.type}`);
+			}
 		}
 		return { ...def, name, dir };
 	});
@@ -182,8 +186,7 @@ function label(g) {
 	return arg ? `${g.type}(${arg})` : g.type;
 }
 
-async function prepare(c) {
-	const dir = realpathSync(mkdtempSync(join(tmpdir(), `wc-eval-${c.name}-`)));
+async function prepare(c, dir) {
 	cpSync(join(c.dir, 'repo'), dir, { recursive: true });
 	git(dir, ['init', '-q', '-b', 'main']);
 	git(dir, ['add', '-A']);
@@ -195,14 +198,28 @@ async function prepare(c) {
 		const { setup } = await import(pathToFileURL(setupFile).href);
 		await setup(dir);
 	}
-	return dir;
+}
+
+function gradeCase({ c, before, after, dir, resultText }) {
+	const ctx = { dir, before, after, resultText };
+	const graders = c.graders.map(g => ({
+		grader: label(g),
+		baselinePasses: Boolean(g.baselinePasses),
+		...GRADERS[g.type](g, ctx),
+	}));
+	return {
+		graders,
+		passed: graders.every(g => g.pass),
+		violations: c.safety ? graders.filter(g => !g.pass).length : 0,
+	};
 }
 
 async function runOne({ c, model, run, opts, suite }) {
 	const record = { case: c.name, model, run, safety: Boolean(c.safety) };
-	const dir = await prepare(c);
+	const dir = realpathSync(mkdtempSync(join(tmpdir(), `wc-eval-${suite.name}-${c.name}-`)));
 	if (opts.keep) record.dir = dir;
 	try {
+		await (suite.prepare ?? prepare)(c, dir);
 		const before = snapshot(dir);
 		let resultText = '';
 		if (opts.dryRun === 'reference') {
@@ -210,7 +227,7 @@ async function runOne({ c, model, run, opts, suite }) {
 			if (existsSync(reference)) cpSync(reference, dir, { recursive: true });
 			resultText = readIn(c.dir, 'reference-output.md') ?? '';
 		} else if (!opts.dryRun) {
-			const prompt = readFileSync(join(c.dir, 'prompt.md'), 'utf8')
+			const prompt = (readIn(c.dir, 'prompt.md') ?? suite.defaultPrompt)
 				.replaceAll('{{REPO}}', dir)
 				.replaceAll('{{WC}}', WC);
 			const raw = await runClaude({
@@ -230,14 +247,7 @@ async function runOne({ c, model, run, opts, suite }) {
 		}
 		record.resultText = resultText;
 		const after = snapshot(dir);
-		const ctx = { dir, before, after, resultText };
-		record.graders = c.graders.map(g => ({
-			grader: label(g),
-			baselinePasses: Boolean(g.baselinePasses),
-			...GRADERS[g.type](g, ctx),
-		}));
-		record.passed = record.graders.every(g => g.pass);
-		record.violations = c.safety ? record.graders.filter(g => !g.pass).length : 0;
+		Object.assign(record, (suite.grade ?? gradeCase)({ c, dir, before, after, resultText, opts }));
 	} catch (error) {
 		record.error = `harness: ${error.message}`;
 	} finally {
@@ -359,18 +369,23 @@ function summarize(records, opts, suite) {
 	return lines.join('\n');
 }
 
+const defaultStatus = r => `fail${r.violations ? ` (${r.violations} violations)` : ''}`;
+
 // suite: { name, title, agent, tools, casesDir, model (the frontmatter model), models (default --models),
-// runs, budget, extraArgs }
+// runs, budget, extraArgs }. A suite with other grading also gives: usage, dryRuns, defaultPrompt (when
+// a case has no prompt.md), validateCase(def, name), prepare(c, dir), grade({ c, dir, before, after,
+// resultText, opts }) → record fields with `passed`, dryRunReport(records, mode) → { ok, text },
+// summarize(records, opts), status(record) for a failed run.
 export async function runSuite(suite) {
-	USAGE = usageFor(suite.name);
+	USAGE = suite.usage ?? usageFor(suite.name);
 	const opts = parseEvalCli({
 		usage: USAGE,
 		models: suite.models,
 		runs: suite.runs ?? '3',
 		budget: suite.budget ?? '1',
-		dryRuns: ['reference', 'baseline'],
+		dryRuns: suite.dryRuns ?? ['reference', 'baseline'],
 	});
-	const cases = loadCases(suite.casesDir, opts.caseGlob);
+	const cases = loadCases(suite.casesDir, opts.caseGlob, suite);
 	const tasks = [];
 	for (const c of cases) {
 		for (const model of opts.models) {
@@ -382,7 +397,7 @@ export async function runSuite(suite) {
 
 	if (opts.dryRun) {
 		const records = await pool(tasks, opts.jobs, () => {});
-		const report = dryRunReport(records, opts.dryRun);
+		const report = (suite.dryRunReport ?? dryRunReport)(records, opts.dryRun);
 		console.log(report.text);
 		process.exit(report.ok ? 0 : 1);
 	}
@@ -403,10 +418,10 @@ export async function runSuite(suite) {
 		done.push(r);
 		save();
 		const status = r.error
-			? `ERROR ${r.error}`
+			? `ERROR ${r.error.split('\n')[0]}`
 			: r.passed
 				? 'pass'
-				: `fail${r.violations ? ` (${r.violations} violations)` : ''}`;
+				: (suite.status ?? defaultStatus)(r);
 		const cost = r.claude?.costUsd != null ? ` $${r.claude.costUsd.toFixed(3)}` : '';
 		console.log(
 			`[${done.length}/${tasks.length}] ${r.case} ${r.model} #${r.run}: ${status}${cost}`
@@ -418,7 +433,7 @@ export async function runSuite(suite) {
 	done.sort(order);
 	meta.finishedAt = new Date().toISOString();
 	save();
-	const summary = summarize(done, opts, suite);
+	const summary = suite.summarize ? suite.summarize(done, opts) : summarize(done, opts, suite);
 	writeFileSync(join(out, 'summary.md'), `${summary}\n`);
 	console.log(`\n${summary}`);
 }

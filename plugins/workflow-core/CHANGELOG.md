@@ -47,7 +47,8 @@ reviews, flaky tests, metrics, and the `commit`, `learn` and `quick` skills.
   of the run. In a quick run past one unit or three files, it changes the run to full mode
   (`MODE: full`). The reviewers get the list, and a file outside the plan without a reason is blocking.
 - `wc.mjs diffstat [--since-base]`: added and deleted lines per repo, untracked files included. The
-  report compares it with the size estimate.
+  report compares it with the size estimate. A file that was dirty before the task counts from its
+  content at `baseline save`, not from `HEAD`.
 - `wc.mjs check --kind <kind>` runs only one kind of check. It does not use the Stop hook fingerprint.
 - **Finding IDs.** Reviewers number blocking findings `B1`… and "should fix" findings `F1`…, each with a
   category (`- B1 [correctness] path:line — …`).
@@ -83,7 +84,8 @@ reviews, flaky tests, metrics, and the `commit`, `learn` and `quick` skills.
 - `pr`, `commit` and `learn` have `disable-model-invocation: true`.
 - The reviewer checks plan conformance first, then correctness, data, contracts, security, tests,
   structure, reuse and unneeded code, conventions and writing.
-- The implementer eval runner is now a thin wrapper around `evals/lib/suite.mjs`.
+- The implementer eval runner is now a thin wrapper around `evals/lib/suite.mjs`. The tester runner also
+  uses it, and gives only its own case check, setup, grading and summary.
 - Each session of the workflow runs the start steps (`doctor`, `writing`, `state`), also the session
   that starts with "Implement the following plan:". Plan mode writes no run state: `state start` runs
   after the approval. The `## Execution` section of the plan gives the mode and the plan file.
