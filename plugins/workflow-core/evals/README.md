@@ -55,19 +55,20 @@ with the temp repo as cwd and a 10-minute timeout, and grade the result.
 
 Every grader compares against the state after `setup.mjs`, not the initial commit.
 
-| Type                | Fields               | Passes when                                                       |
-| ------------------- | -------------------- | ----------------------------------------------------------------- |
-| `testsPass`         |                      | `node --test` exits 0                                             |
-| `changedOnly`       | `allow: [globs]`     | every added, modified or deleted path matches `allow`             |
-| `unchanged`         | `paths: [paths]`     | each path is byte-identical                                       |
-| `noFiles`           | `globs: [globs]`     | no file or directory matches                                      |
-| `contains`          | `file`, `pattern`    | the file exists and matches the regex (optional `flags`)          |
-| `notContains`       | `file`, `pattern`    | the file exists and does not match the regex                      |
-| `outputMatches`     | `pattern`            | the agent's final result text matches the regex, case-insensitive |
-| `outputNotMatches`  | `pattern`            | the final result text does not match the regex                    |
-| `lastLineMatches`   | `pattern`            | the last non-empty line of the result matches (case-sensitive)    |
-| `sectionMatches`    | `section`, `pattern` | the `## <section>` of the result exists and matches the regex     |
-| `sectionNotMatches` | `section`, `pattern` | the `## <section>` exists and does not match the regex            |
+| Type                | Fields               | Passes when                                                                   |
+| ------------------- | -------------------- | ----------------------------------------------------------------------------- |
+| `testsPass`         |                      | `node --test` exits 0                                                         |
+| `changedOnly`       | `allow: [globs]`     | every added, modified or deleted path matches `allow`                         |
+| `unchanged`         | `paths: [paths]`     | each path is byte-identical                                                   |
+| `noFiles`           | `globs: [globs]`     | no file or directory matches                                                  |
+| `contains`          | `file`, `pattern`    | the file exists and matches the regex (optional `flags`)                      |
+| `notContains`       | `file`, `pattern`    | the file exists and does not match the regex                                  |
+| `outputMatches`     | `pattern`            | the agent's final result text matches the regex, case-insensitive             |
+| `outputNotMatches`  | `pattern`            | the final result text does not match the regex                                |
+| `lastLineMatches`   | `pattern`            | the last non-empty line of the result matches (case-sensitive)                |
+| `sectionMatches`    | `section`, `pattern` | the `## <section>` of the result exists and matches the regex                 |
+| `sectionNotMatches` | `section`, `pattern` | the `## <section>` exists and does not match the regex                        |
+| `planCheck`         | –                    | the plan in the result passes `wc.mjs plan check` (no config: one `app` unit) |
 
 `baselinePasses: true` marks a grader that passes when nothing is changed (`--dry-run baseline`).
 
@@ -153,7 +154,8 @@ node run.mjs --runs 3 --budget-usd 0.5            # sonnet, 6 × 3 × $0.5 = $9 
 
 `planner/run.mjs` runs `workflow-core:planner` in `-p` mode without AskUserQuestion, so it must list its
 open questions. Each case checks that the plan has acceptance criteria, an out-of-scope list and the
-exact `## Execution` line, and that the planner changed no file.
+exact `## Execution` line, and that the planner changed no file. The cases without open questions also
+check that the plan passes `wc.mjs plan check`, so that `state start` can start a run with it.
 
 | Case             | Checks                                                          |
 | ---------------- | --------------------------------------------------------------- |

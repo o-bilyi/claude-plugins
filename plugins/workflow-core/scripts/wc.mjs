@@ -18,7 +18,9 @@ import { checkDocs, renderDocs } from './lib/docs.mjs';
 import { refExists } from './lib/git.mjs';
 import { buildModel } from './lib/model.mjs';
 import { preflight, renderBaselineSave, renderPreflight } from './lib/preflight.mjs';
+import { checkPlan, planKind, renderPlanCheck } from './lib/plan.mjs';
 import { lintProse, renderProse } from './lib/prose.mjs';
+import { renderRepro, runRepro } from './lib/repro.mjs';
 import {
 	advancePhase,
 	clearRun,
@@ -46,6 +48,7 @@ const USAGE = `usage: wc.mjs <command> [--json]
   touched [--since-base] | reviewers [--since-base] | diffstat [--since-base]
   check [unit...] [--stop] [--since-base] [--kind <kind>] [--retry]
   scope [--plan <file|->] [--since-base]   (without --plan: the plan of the run)
+  plan check [--plan <file|->] | repro   (without --plan: the plan of the run)
   docs [--staged]
   preflight [unit...] [--force]
   baseline save [unit...] [--force] | baseline status | baseline clear [unit...]
@@ -53,7 +56,7 @@ const USAGE = `usage: wc.mjs <command> [--json]
   state start [quick|full] [--plan <file|->] | state round | state review -   (JSON on stdin)
   metrics | metrics record -   (JSON on stdin)
   writing | prose <file|-...> [--strict] | prose --rules   (work without a config)
-exit codes: 0 ok, 1 a check failed (get: no value; docs: out of date in require mode; scope: files outside the plan; state round: no round left; prose --strict: writing issues), 2 invalid config or usage, 3 no config or unsupported config version`;
+exit codes: 0 ok, 1 a check failed (get: no value; docs: out of date in require mode; scope: files outside the plan; plan check and state start: the plan misses parts; repro: the bug still shows; state round: no round left; prose --strict: writing issues), 2 invalid config or usage, 3 no config or unsupported config version`;
 const FLAGS = new Set([
 	'--json',
 	'--since-base',
@@ -370,6 +373,31 @@ export async function main(rawArgv) {
 			print(result, json, () => renderScope(result));
 			return result.ok ? 0 : 1;
 		},
+		plan: model => {
+			if (args[0] !== 'check') {
+				console.error(USAGE);
+				return 2;
+			}
+			const text = values.plan ? readInput(values.plan) : readPlan(projectState(model));
+			if (text === null) {
+				console.error(`plan check needs --plan <file|->: the run has no plan\n${USAGE}`);
+				return 2;
+			}
+			const result = checkPlan(model, text, { mode: readRun(projectState(model)).mode });
+			print(result, json, () => renderPlanCheck(result));
+			return result.ok ? 0 : 1;
+		},
+		repro: async model => {
+			const dir = projectState(model);
+			const text = readPlan(dir);
+			if (text === null) {
+				console.error(`repro needs a run with a plan: run state start --plan first\n${USAGE}`);
+				return 2;
+			}
+			const result = await runRepro(model, dir, text);
+			print(result, json, () => renderRepro(result));
+			return result.ok ? 0 : 1;
+		},
 		state: model => {
 			const dir = projectState(model);
 			const [action, ...rest] = args;
@@ -402,8 +430,20 @@ export async function main(rawArgv) {
 			if (action === 'start') {
 				const planText = values.plan ? readInput(values.plan) : undefined;
 				const plan = values.plan && values.plan !== '-' ? values.plan : null;
-				const run = startRun(dir, model, { mode: rest[0], plan, planText });
-				print(run, json, () => `Run started: mode=${run.mode}, phase=${run.phase}.`);
+				if (planText !== undefined) {
+					const result = checkPlan(model, planText, { mode: rest[0] });
+					if (!result.ok) {
+						print(result, json, () => renderPlanCheck(result));
+						return 1;
+					}
+				}
+				const kind = planText === undefined ? 'feature' : planKind(planText);
+				const run = startRun(dir, model, { mode: rest[0], plan, planText, kind });
+				print(
+					run,
+					json,
+					() => `Run started: mode=${run.mode}, kind=${run.kind}, phase=${run.phase}.`
+				);
 				return 0;
 			}
 			if (action === 'round') {

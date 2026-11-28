@@ -7,9 +7,22 @@ All notable changes to workflow-core. The format follows
 ## 0.14.0 - 2026-11-27
 
 One release for all the planned work: minimal code, STE writing, run state, scope, quick mode, parallel
-reviews, flaky tests, metrics, and the `commit`, `learn` and `quick` skills.
+reviews, flaky tests, metrics, bug fixes, and the `commit`, `learn`, `quick` and `bugfix` skills.
 
 ### Added
+
+- **Plan check.** `wc.mjs plan check [--plan <file|->]` lists the parts that a plan misses. These are the step and
+  acceptance criterion IDs, the reuse map, the out-of-scope part and the `## Execution` part with
+  `Mode:`. They also include the size estimate (full mode) and the reproduction (bug fix). A path that does not exist needs "(new)"
+  on its line. `state start` runs it first, and does not start a run with a plan that misses parts.
+  The planner eval checks its plans with the new `planCheck` grader, and its cases now expect the
+  `## Execution` lines of the current planner.
+- **Bug fix.** `Kind: bug` in the plan and the `/workflow-core:bugfix` skill. The plan has a
+  `## Reproduction` part with the unit and the command. `wc.mjs repro` runs the command: it must fail
+  before the fix and pass after it. When the test files change after the failure, it prints `NEXT: ask`.
+- **Phase times and more metrics.** The run state keeps the time of each phase. `metrics record` adds
+  the kind, the time of each phase, the size against the estimate, the stops to ask and the
+  reproduction. `metrics` shows their means and the median size against the estimate.
 
 - **Minimal code and reuse.** The planner searches for existing code (project code, then installed
   dependencies, then the standard library) and writes a **Reuse map**. The plan also has a **No-code

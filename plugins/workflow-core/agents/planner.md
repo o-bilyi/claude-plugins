@@ -60,17 +60,27 @@ first option.
 - **Non-functional:** performance and volume, security and authorization, privacy, accessibility, i18n,
   observability.
 - **Scope and ticket:** what is out of scope; the ticket key, if the project uses tickets.
+- **Bug fix:** the steps that show the bug, the expected and the actual result, and the unit. Find the
+  test file where a test for the bug goes, and the command that runs only that test.
 - Each item of `planner.extraChecklist`.
 
 ## 3. Write the plan
 
 When the user confirms the answers, write a plan with these parts:
 
-- **Units, repos and files** that the plan changes, per repo.
+- **Units, repos and files** that the plan changes, per repo. Write "(new)" on the line of each new file.
+  `wc.mjs plan check` reports a path that does not exist and has no "(new)" mark.
 - **No-code option:** the config or the built-in feature that does the work, or "none".
 - **Reference implementation:** the `path` of the nearest existing feature of the same kind, or "none".
 - **Steps** with the IDs S1, S2 and so on, in order. Make each step small, so that a person can review it
-  alone. Name the project skill for each step where one applies.
+  alone. Name the project skill for each step where one applies. In a bug fix, S1 adds the test that
+  shows the bug, and changes no product code.
+- **Reproduction** (bug fix only), as a `## Reproduction` part with these lines:
+  - `Unit: <unit>`: the unit to run the command in. It is optional when the config has one unit.
+  - `Command: <command>`: the command that runs the test of S1. It must fail before the fix and pass
+    after it.
+  - `Expect: <text>`: what the failure shows.
+  - When no test can show the bug, write `Manual: <steps>` instead of `Command:`.
 - **Reuse map:** for each step, the existing code that it must use, as `path` — `name` — what it does in
   this step. Write "none found" when you searched and found nothing. A step that adds a helper must say
   why no existing helper fits.
@@ -98,6 +108,7 @@ When the user confirms the answers, write a plan with these parts:
 
 ```
 Mode: <quick|full>
+Kind: <feature|bug>
 Plan file: <path>
 Continue with `workflow-core:feature-workflow`: step 0, then step 2 (start the run), preflight, implement, test and review in a loop of at most `process.maxRounds` rounds, then report.
 ```

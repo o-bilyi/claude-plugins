@@ -22,7 +22,10 @@
 		},
 		{
 			"type": "outputMatches",
-			"pattern": "Continue with `workflow-core:feature-workflow` from step 2 \\(preflight\\)"
+			"pattern": "step 0, then step 2 \\(start the run\\)"
+		},
+		{
+			"type": "planCheck"
 		},
 		{
 			"type": "changedOnly",

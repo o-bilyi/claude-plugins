@@ -10,7 +10,7 @@ const BOLD_PART = /^\s*[-*]?\s*\*\*[^*]+\*\*/;
 
 // A backticked token is a path when it ends in / or has a lowercase extension. Tokens such as
 // `Array.isArray`, globs and URLs are not paths.
-function asPath(raw) {
+export function asPath(raw) {
 	const token = raw.replace(/^\.\//, '').replace(/[:,;]$/, '');
 	if (/[*?{}<>()]/.test(token) || /^[a-z]+:\/\//i.test(token)) return null;
 	if (token.endsWith('/')) return token;

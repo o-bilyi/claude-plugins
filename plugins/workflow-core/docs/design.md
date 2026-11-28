@@ -159,12 +159,14 @@ lines say.
 
 0. **Start.** The skill runs `doctor` and `writing`. Then it reads the run state (section 7). If a run is
    open, the skill asks the user to continue it or to start again. It selects the mode (section 5.1).
-   These steps only read, so they are safe in plan mode. Each session does them, also the session that
+   It selects the kind: `bug` for a bug fix (section 5.3), else `feature`. These steps only read, so
+   they are safe in plan mode. Each session does them, also the session that
    starts with "Implement the following plan:".
 1. **Plan.** The main session follows `agents/planner.md` (section 8). The `## Execution` section of the
    plan gives the mode and the plan file. Plan mode writes no run state.
-2. **Start the run.** After the approval, `state start` writes the run: the mode, a copy of the plan and
-   the branch of each repo. This is the first step of the session after plan mode.
+2. **Start the run.** After the approval, `state start` checks the parts of the plan (`plan check`). A
+   plan that misses parts does not start a run. Then the script writes the run: the mode, the kind, a
+   copy of the plan and the branch of each repo. This is the first step of the session after plan mode.
 3. **Preflight.** The skill checks the branch, the dirty files and the baseline. With `branchTicket` and
    a `ticketPattern`, the branch must contain the ticket. The workflow never switches or creates
    branches. The user tells if the dirty files are part of the task. The skill saves the baseline one
@@ -238,6 +240,21 @@ commit.
 Only the user can start `commit`, `pr` and `learn` (`disable-model-invocation`). These skills change git
 history or project rules, so the model must not start them by itself.
 
+### 5.3 Bug fix
+
+A bug fix has `Kind: bug` in the `## Execution` section, in quick or full mode. The user starts it with
+`/workflow-core:bugfix`, or the skill selects it. The plan has a `## Reproduction` part: the unit, the
+command that runs the test of S1, and the expected failure. S1 adds that test and changes no product
+code.
+
+The implementer does only S1 first. Then `repro` runs the command. It must fail, because a test that
+passes before the fix does not show the bug.
+
+The script keeps the hash of each touched file at that time. After each tester PASS, `repro` runs
+again, and the command must pass. When those files changed after the failure, the script prints
+`NEXT: ask`. Thus a fix cannot pass by a weaker test. When no test can show the bug, the plan has a
+`Manual:` line, and the user checks the bug before and after the fix.
+
 ## 6. Hooks
 
 | Event                                   | Hook           | Behavior                                                                                                   |
@@ -293,7 +310,7 @@ baseline/<unit>/<check>.errors     error lines at preflight, with counts
 checked/<unit>.fp                  fingerprint of the last passing state (Stop hook and tester)
 sessions/<session_id>              repo-relative paths the session edited (Stop hook scope)
 tsbuildinfo/<unit>/<check>         incremental tsc state
-run.json                           the open workflow run: mode, phase, round, pass, plan, branches, findings
+run.json                           the open workflow run: mode, kind, phase, round, pass, plan, branches, findings, phase times, repro
 plan.md                            a copy of the plan of the open run
 metrics.jsonl                      one line per finished run
 ```
@@ -313,10 +330,10 @@ this clone.
   and the category. When the same blocking key is in the last three passes, the next step is `ask`.
   When the run has no round left, the next step is also `ask`. With no blocking finding, it is
   `report`. In all other cases, it is `fix`.
-- **Metrics.** `metrics record` adds one line for the run. The script adds the mode, the rounds, the
-  passes, the diffstat and the findings. The skill gives only the result, the tester counts and the
-  estimate. `metrics` shows the number of runs, the mean rounds, the blocking findings per reviewer and
-  the categories. `/workflow-core:learn` reads them.
+- **Phase times.** Each write of the run state that changes the phase adds the time of the last phase to
+  its total. Thus the run knows the time of each phase without help from the skill.
+- **Metrics.** `metrics record` adds one line for the run. The script adds the mode, the kind, the rounds, the passes and the diffstat. It also adds the size against the estimate, the time of each phase, the stops to ask, the reproduction and the findings. The skill gives only the result, the tester counts and the
+  estimate. `metrics` shows the number of runs per kind, the mean rounds and the stops to ask. It also shows the median size against the estimate, the mean time per phase, the blocking findings per reviewer and the categories. `/workflow-core:learn` reads them.
 
 ## 8. Agents
 

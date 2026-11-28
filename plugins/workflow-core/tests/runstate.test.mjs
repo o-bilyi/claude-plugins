@@ -35,6 +35,26 @@ const finding = (over = {}) => ({
 	summary: "the user's input is not checked",
 	...over,
 });
+// A plan with every part that `plan check` needs.
+const plan = ({ mode = 'full', kind = 'feature', files = ['a.ts'], extra = '' } = {}) =>
+	[
+		'## Steps',
+		`- S1 edit ${files.map(f => `\`${f}\``).join(', ')}`,
+		'## Reuse map',
+		'- none found',
+		'## Acceptance criteria',
+		'- A1 it works',
+		'## Out of scope',
+		'- nothing',
+		'## Size estimate',
+		'10 lines',
+		extra,
+		'## Execution',
+		`Mode: ${mode}`,
+		`Kind: ${kind}`,
+		'',
+	].join('\n');
+
 const review = (p, findings) => wc(p, ['state', 'review', '-', '--json'], JSON.stringify(findings));
 
 describe('wc.mjs state', () => {
@@ -54,9 +74,9 @@ describe('wc.mjs state', () => {
 
 	test('start keeps the mode, the branch and a copy of the plan', () => {
 		const p = createProject({ config: APP, files: { 'a.ts': '' } });
-		const plan = '## Steps\n- S1 edit `a.ts`\n## Execution\nMode: quick\n';
-		const run = json(wc(p, ['state', 'start', '--plan', '-', '--json'], plan));
+		const run = json(wc(p, ['state', 'start', '--plan', '-', '--json'], plan({ mode: 'quick' })));
 		assert.equal(run.mode, 'quick');
+		assert.equal(run.kind, 'feature');
 		assert.equal(run.phase, 'preflight');
 		assert.equal(run.round, 0);
 		assert.deepEqual(Object.keys(run.branches), ['.']);
@@ -186,6 +206,11 @@ describe('wc.mjs metrics', () => {
 		assert.equal(entry.rounds, 1);
 		assert.equal(entry.passes, 2);
 		assert.equal(entry.added, 1);
+		assert.equal(entry.kind, 'feature');
+		assert.equal(entry.ratio, 0.2);
+		assert.equal(entry.asked, false);
+		assert.equal(typeof entry.seconds, 'number');
+		assert.deepEqual(Object.keys(entry.times).sort(), ['fix', 'preflight', 'report', 'review']);
 		assert.equal(entry.findings.length, 1);
 		assert.match(entry.findings[0].summary, /user's input/);
 		assert.equal(wc(p, ['state', 'get', 'phase']).stdout, 'done\n');
@@ -199,7 +224,13 @@ describe('wc.mjs metrics', () => {
 		assert.equal(out.summary.caused, 3);
 		assert.deepEqual(out.summary.blockingByReviewer, { reviewer: 1 });
 		assert.deepEqual(out.summary.categories, { reuse: 1 });
-		assert.match(wc(p, ['metrics']).stdout, /mean rounds: 0\.5/);
+		assert.deepEqual(out.summary.kinds, { feature: 2 });
+		assert.equal(out.summary.medianRatio, 0.2);
+		const text = wc(p, ['metrics']).stdout;
+		assert.match(text, /mean rounds: 0\.5/);
+		assert.match(text, /stopped to ask: 0 of 2/);
+		assert.match(text, /size against the estimate \(median\): 0\.20x/);
+		assert.match(text, /mean time by phase:\n  preflight: /);
 	});
 
 	test('record takes only the fields that the script does not know', () => {
@@ -207,6 +238,112 @@ describe('wc.mjs metrics', () => {
 		assert.equal(wc(p, ['metrics', 'record', '-'], 'oops').status, 2);
 		assert.equal(wc(p, ['metrics', 'record', '-'], '{"rounds":9}').status, 2);
 		assert.equal(wc(p, ['metrics', 'record', '{}']).status, 2);
+	});
+});
+
+describe('wc.mjs plan check', () => {
+	const check = (p, text) => wc(p, ['plan', 'check', '--plan', '-'], text);
+
+	test('a full plan passes, and the problems of a short plan are listed', () => {
+		const p = createProject({ config: APP, files: { 'a.ts': '' } });
+		const ok = check(p, plan());
+		assert.equal(ok.status, 0, ok.stdout);
+		assert.match(ok.stdout, /Plan check: ok \(mode=full, kind=feature\)/);
+		const r = check(p, '## Steps\n- S1 edit `a.ts`\n- S1 again\n');
+		assert.equal(r.status, 1);
+		for (const re of [
+			/no `## Execution` part/,
+			/no acceptance criteria/,
+			/the ID S1 is used two times/,
+			/no Reuse map/,
+			/no Out of scope/,
+			/no Size estimate/,
+			/NEXT: fix the plan/,
+		]) {
+			assert.match(r.stdout, re);
+		}
+	});
+
+	test('a quick plan needs no size estimate; a missing file needs "(new)"', () => {
+		const p = createProject({ config: APP, files: { 'a.ts': '' } });
+		const quick = plan({ mode: 'quick' }).replace('## Size estimate\n10 lines\n', '');
+		assert.equal(check(p, quick).status, 0);
+		const missing = check(p, plan({ files: ['a.ts', 'b.ts'] }));
+		assert.match(missing.stdout, /`b\.ts` does not exist/);
+		const added = plan().replace('- S1 edit `a.ts`', '- S1 edit `a.ts`\n- S2 add `b.ts` (new)');
+		assert.equal(check(p, added).status, 0);
+	});
+
+	test('a bug plan needs a reproduction with a command of a known unit', () => {
+		const p = createProject({ config: APP, files: { 'a.ts': '' } });
+		assert.match(check(p, plan({ kind: 'bug' })).stdout, /needs a `## Reproduction` part/);
+		const repro = cmd => `## Reproduction\n${cmd}`;
+		assert.equal(
+			check(p, plan({ kind: 'bug', extra: repro('Unit: app\nCommand: `false`') })).status,
+			0
+		);
+		assert.equal(check(p, plan({ kind: 'bug', extra: repro('Command: `false`') })).status, 0);
+		assert.match(
+			check(p, plan({ kind: 'bug', extra: repro('Unit: web\nCommand: `false`') })).stdout,
+			/unit web is not a unit/
+		);
+		assert.equal(check(p, plan({ kind: 'bug', extra: repro('Manual: open the page') })).status, 0);
+		assert.match(check(p, plan({ kind: 'chore' })).stdout, /Kind must be one of feature, bug/);
+	});
+
+	test('state start does not start a run with a plan that misses parts', () => {
+		const p = createProject({ config: APP, files: { 'a.ts': '' } });
+		const r = wc(p, ['state', 'start', '--plan', '-'], '## Steps\n- S1 edit `a.ts`\n');
+		assert.equal(r.status, 1);
+		assert.match(r.stdout, /Plan check: \d+ problem/);
+		assert.deepEqual(json(wc(p, ['state', '--json'])), {});
+	});
+});
+
+describe('wc.mjs repro', () => {
+	const bug = command =>
+		plan({ kind: 'bug', extra: `## Reproduction\nUnit: app\nCommand: \`${command}\`` });
+
+	test('fails first, then passes after the fix; a changed test stops the run', () => {
+		const p = createProject({ config: APP, files: { 'a.ts': '' } });
+		assert.equal(wc(p, ['repro']).status, 2);
+		assert.equal(wc(p, ['state', 'start', '--plan', '-'], bug('test -f fixed.txt')).status, 0);
+		writeFile(p.root, 'a.test.ts', 'the test\n');
+		const first = wc(p, ['repro']);
+		assert.equal(first.status, 0);
+		assert.match(first.stdout, /REPRO: reproduced[\s\S]*NEXT: fix/);
+		writeFile(p.root, 'fixed.txt', 'yes\n');
+		assert.match(wc(p, ['repro']).stdout, /REPRO: fixed\nNEXT: continue/);
+		writeFile(p.root, 'a.test.ts', 'a weaker test\n');
+		const changed = wc(p, ['repro']);
+		assert.match(changed.stdout, /REPRO: test-changed\nNEXT: ask \(.*a\.test\.ts/);
+		const entry = json(wc(p, ['metrics', 'record', '-', '--json'], '{"result":"FAIL"}'));
+		assert.equal(entry.kind, 'bug');
+		assert.equal(entry.asked, true);
+		assert.deepEqual(entry.repro, { status: 'fixed', changed: ['a.test.ts'] });
+	});
+
+	test('a command that passes before the fix does not reproduce the bug', () => {
+		const p = createProject({ config: APP, files: { 'a.ts': '' } });
+		wc(p, ['state', 'start', '--plan', '-'], bug('true'));
+		assert.match(wc(p, ['repro']).stdout, /REPRO: not-reproduced\nNEXT: ask/);
+		assert.equal(wc(p, ['state', 'get', 'asked']).stdout, 'true\n');
+	});
+
+	test('a fix that does not work exits 1 with the output', () => {
+		const p = createProject({ config: APP, files: { 'a.ts': '' } });
+		wc(p, ['state', 'start', '--plan', '-'], bug('echo still broken; false'));
+		wc(p, ['repro']);
+		const r = wc(p, ['repro']);
+		assert.equal(r.status, 1);
+		assert.match(r.stdout, /REPRO: still-failing\nstill broken\nNEXT: fix/);
+	});
+
+	test('a manual reproduction asks the user', () => {
+		const p = createProject({ config: APP, files: { 'a.ts': '' } });
+		const text = plan({ kind: 'bug', extra: '## Reproduction\nManual: open the page' });
+		wc(p, ['state', 'start', '--plan', '-'], text);
+		assert.match(wc(p, ['repro']).stdout, /NEXT: ask \(manual reproduction: open the page\)/);
 	});
 });
 
@@ -264,7 +401,7 @@ describe('wc.mjs scope', () => {
 		const p = createProject({ config: APP, files: { 'a.ts': '' } });
 		assert.equal(wc(p, ['scope']).status, 2);
 		assert.equal(wc(p, ['scope', '--plan']).status, 2);
-		wc(p, ['state', 'start', 'full', '--plan', '-'], 'Edit `a.ts`.');
+		wc(p, ['state', 'start', 'full', '--plan', '-'], plan());
 		writeFile(p.root, 'a.ts', 'x\n');
 		const r = wc(p, ['scope']);
 		assert.equal(r.status, 0, r.stderr);
@@ -276,7 +413,7 @@ describe('wc.mjs scope', () => {
 			config: APP,
 			files: { 'a.ts': '', 'b.ts': '', 'c.ts': '', 'd.ts': '' },
 		});
-		wc(p, ['state', 'start', 'quick', '--plan', '-'], 'Edit `a.ts`.');
+		wc(p, ['state', 'start', 'quick', '--plan', '-'], plan({ mode: 'quick' }));
 		writeFile(p.root, 'a.ts', 'x\n');
 		assert.doesNotMatch(wc(p, ['scope']).stdout, /MODE/);
 		for (const f of ['b.ts', 'c.ts', 'd.ts']) writeFile(p.root, f, 'x\n');

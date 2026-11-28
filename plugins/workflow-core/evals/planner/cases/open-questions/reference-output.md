@@ -21,6 +21,11 @@
 - Is the fee fixed, or does it depend on the subtotal, the weight or the region?
 - Is there a free-shipping threshold?
 
+**Size estimate:** about 40 changed lines.
+
 ## Execution
 
-Continue with `workflow-core:feature-workflow` from step 2 (preflight): implement, test and review in a loop of at most `process.maxRounds` rounds, then report.
+Mode: full
+Kind: feature
+Plan file: none
+Continue with `workflow-core:feature-workflow`: step 0, then step 2 (start the run), preflight, implement, test and review in a loop of at most `process.maxRounds` rounds, then report.

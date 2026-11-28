@@ -19,6 +19,8 @@ The full design is in [docs/design.md](docs/design.md). The changes in each vers
 - **Skills:**
   - `feature-workflow`: the full loop, with a quick mode for small changes.
   - `quick`: the quick mode, as a command.
+  - `bugfix`: the bug fix mode. A test shows the bug first, and the script checks it before and after
+    the fix.
   - `verify`: the checks for the touched units.
   - `commit`: one commit per touched repo, after the checks. It never pushes.
   - `pr`: one PR per touched repo.
@@ -223,15 +225,22 @@ no metrics.
 
 The scripts make the decisions of the loop, and the workflow does what they print:
 
-- `state start` keeps the mode, a copy of the plan and the branch of each repo. SessionStart tells you
-  when the open run belongs to another branch.
+- `state start` first checks the parts of the plan (`plan check`). A plan must have steps (`S1`…), acceptance criteria (`A1`…), a reuse map, an out-of-scope part and an `## Execution` part with `Mode:`. In full mode, it also needs a size estimate. A plan without these parts does not start a run. A path that does not exist needs "(new)" on its
+  line. A bug plan (`Kind: bug`) also needs a `## Reproduction` part.
+- `state start` keeps the mode, the kind, a copy of the plan and the branch of each repo. SessionStart
+  tells you when the open run belongs to another branch.
 - `preflight` moves the run to `implement`. `state round` counts the rounds, and exits 1 when the run
   has no more rounds.
 - `state review -` records the findings of one review pass. It prints `NEXT: fix`, `NEXT: report` or
   `NEXT: ask`. It asks when the same blocking finding (the same reviewer, file and category) is in the
   last three passes.
 - `scope` changes a quick run to full mode when it touches more than one unit or three files.
-- `metrics record -` adds the mode, the rounds, the size and the findings to the values that you give.
+- `repro` runs the `Command:` of the `## Reproduction` part in its unit. The first run must fail
+  (`NEXT: fix`), and the script keeps the hash of each touched file. Later runs must pass
+  (`REPRO: fixed`), and those files must not change (`NEXT: ask`). A command that passes before the fix
+  and a `Manual:` reproduction also print `NEXT: ask`.
+- `metrics record -` adds what the run knows to the values that you give. These are the mode, the kind, the rounds, the time of each phase and the size against the estimate. They also include the stops to ask, the reproduction and the findings. `metrics`
+  shows the means and the median size against the estimate.
 
 **Flaky tests.** `check --retry` runs a failed test check one more time and puts the result in `retry`.
 The tester calls an `unsure` failure that passed on the second run flaky. A `caused` failure stays
@@ -304,6 +313,8 @@ Run `node scripts/wc.mjs <command> [--json]` from any dir in the project. `CLAUD
 | `config`                                                               | the normalized config as JSON                                                                                                    |
 | `reviewers [--since-base]`                                             | `reviewers[]` agents whose paths are touched                                                                                     |
 | `check [unit…] [--stop] [--since-base] [--kind <kind>] [--retry]`      | runs checks (default: touched units); `--kind` runs one kind; `--retry` runs a failed test check again                           |
+| `plan check [--plan <file\|->]`                                        | the parts that the plan misses; exit 1 when there are any. Without `--plan`, the plan of the run                                 |
+| `repro`                                                                | runs the reproduction command of a bug run; prints `REPRO:` and `NEXT:`; exit 1 when the bug still shows                         |
 | `scope [--plan <file\|->] [--since-base]`                              | touched files that the plan does not name or puts out of scope; exit 1 when there are any. Without `--plan`, the plan of the run |
 | `diffstat [--since-base]`                                              | added and deleted lines per repo, untracked files included; a file dirty at the baseline counts from its baseline content        |
 | `preflight [unit…] [--force]`                                          | branch, ticket match, dirty files, then `baseline save`                                                                          |
@@ -319,7 +330,7 @@ Run `node scripts/wc.mjs <command> [--json]` from any dir in the project. `CLAUD
 
 <!-- prose-ignore -->
 
-Exit codes: 0 ok; 1 a check failed (also: `get` found no value, `docs` found old docs in `require` mode, `scope` found files outside the plan, `state round` found no more rounds, `prose --strict` found writing issues); 2 config not valid, or a usage error (unknown subcommand, option, unit or kind); 3 no config, or a config without `"version": 1`.
+Exit codes: 0 ok; 1 a check failed (also: `get` found no value, `docs` found old docs in `require` mode, `scope` found files outside the plan, `plan check` or `state start` found missing parts, `repro` found that the bug still shows, `state round` found no more rounds, `prose --strict` found writing issues); 2 config not valid, or a usage error (unknown subcommand, option, unit or kind); 3 no config, or a config without `"version": 1`.
 
 To run it without permission prompts, add this allow rule to the settings of the project:
 `Bash(node *workflow-core*/scripts/wc.mjs *)`.

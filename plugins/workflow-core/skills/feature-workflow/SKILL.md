@@ -33,6 +33,8 @@ following plan:". They only read. They are safe in plan mode.
      and three files or fewer. Such a task changes no contract between units, no data or schema, no
      security or authorization, and no dependencies.
    - **Full mode** for all other tasks.
+6. Select the kind. A task that fixes a bug is a **bug fix**, in quick or full mode. Its plan has
+   `Kind: bug` and a `## Reproduction` part. All other tasks are of the kind `feature`.
 
 ### Without a config
 
@@ -46,6 +48,7 @@ The tester then reports that it did not run the checks. Tell the user that in th
 | ----------- | ----------------------------------------------------------------------- |
 | `preflight` | step 3                                                                  |
 | `implement` | step 4. Tell `implementer` that some steps can be complete.             |
+|             | In a bug fix without a `repro` value in `state`, do step 4.1 first.     |
 | `fix`       | step 5.1. Send the last failures or findings again first.               |
 | `review`    | the `next` value of the run: `fix` is step 5.5, `ask` is "Stop and ask" |
 | `report`    | step 6                                                                  |
@@ -64,7 +67,7 @@ In quick mode:
 
 - Ask only the questions that the code does not answer, two at most.
 - The plan has only these parts: files, steps, reuse map, acceptance criteria, out of scope and the
-  `## Execution` section.
+  `## Execution` section. A bug fix also has the `## Reproduction` part.
 
 ## 2. Start the run
 
@@ -73,8 +76,10 @@ After the user approves the plan, run one of these:
 - With a plan file: `node "<wc>" state start --plan <plan file>`.
 - Without a plan file: `node "<wc>" state start <quick|full> --plan -`, with the plan text on stdin.
 
-The script reads the mode from the `## Execution` section of the plan. It keeps a copy of the plan and
-the branch of each repo.
+The script first checks the parts of the plan (`plan check`). On exit 1, the run does not start. Add the
+parts that it lists, show the changes to the user, and run the command again. The script reads the mode
+and the kind from the `## Execution` section of the plan. It keeps a copy of the plan and the branch of
+each repo.
 
 ## 3. Preflight
 
@@ -99,6 +104,15 @@ Do not write the code in the main session. Start the `workflow-core:implementer`
 Always continue that same `implementer` with SendMessage. Never start a second one in the same session.
 If it stops with a question, ask the user. Send the answer with SendMessage to `implementer`.
 
+### 4.1 Bug fix: show the bug first
+
+In a bug fix, tell `implementer` to do only S1: the test that shows the bug. Then run
+`node "<wc>" repro`. It runs the command of the `## Reproduction` part.
+
+- `NEXT: fix`: the test fails, so it shows the bug. Tell `implementer` to do the other steps.
+- `NEXT: ask`: the command passes before the fix, or the reproduction is manual. Go to "Stop and ask".
+  For a manual reproduction, ask the user to do the steps before the fix and after it.
+
 ## 5. Test and review loop
 
 A round is one SendMessage of failures or findings to `implementer`. Before each round, run
@@ -109,6 +123,9 @@ and the first review are free.
    - On `RESULT: FAIL`, run `state round`. Then send the `caused` and `unsure` failures, word for word, to
      `implementer`. Then run the tester again.
    - Tell the user about the `## Flaky` tests, but do not send them to `implementer`.
+   - In a bug fix, on `RESULT: PASS`, run `node "<wc>" repro` before the scope check. `NEXT: continue`
+     means that the bug is gone. On exit 1, run `state round`, and send its output to `implementer`.
+     `NEXT: ask` means that the reproduction files changed after they failed: go to "Stop and ask".
 2. **Scope.** On `RESULT: PASS`, run `node "<wc>" scope`. Give its report to the reviewers.
    - It lists the touched files that the plan does not name, and the touched files that the plan puts
      out of scope.
@@ -148,6 +165,7 @@ Stop and ask the user what to do in these cases:
 - A `wc.mjs` command prints `NEXT: ask`: the run has no more rounds, or the same blocking finding is in the last
   three review passes.
 - `implementer` reports that the correct fix changes the plan.
+- `repro` prints `NEXT: ask`.
 
 The user can fix it in the main session, change the plan, or accept the change as it is.
 
@@ -160,12 +178,14 @@ Run `node "<wc>" diffstat`. Then report:
   more times larger.
 - The touched files outside the plan, from the last scope check.
 - The last tester table and its `RESULT:` line, and the flaky tests.
+- In a bug fix, the last `REPRO:` line.
 - The `REVIEW:` lines and the "should fix" items.
 - The pre-existing failures, in a separate list.
 - The **Reused** and **Duplication found** sections of `implementer`, and what it was not sure about.
 - The open questions.
 
-Then record the run. The script adds the mode, the rounds, the size and the findings. Give it only the
+Then record the run. The script adds the mode, the kind, the rounds, the time of each phase, the size,
+the reproduction and the findings. Give it only the
 values below:
 
 ```bash

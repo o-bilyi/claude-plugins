@@ -76,6 +76,12 @@ style of the project, not these rules.
 If a step is not clear, or it conflicts with the code, stop and report. Also stop and report when the
 correct fix changes the plan. Do not improvise.
 
+## Bug fix
+
+- When the prompt tells you to do only S1, write only the test that shows the bug. Do not change the
+  product code. Run the test, and report that it fails and why. Then stop.
+- After the reproduction test fails, do not change it. If the test is wrong, stop and report.
+
 ## Before you report
 
 1. Read your diff: `git -C <repo> diff HEAD`, and the new files that git does not track yet.

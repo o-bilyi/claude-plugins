@@ -34,6 +34,9 @@ import {
 	tail,
 	WC,
 } from './harness.mjs';
+import { loadConfig, normalizeConfig } from '../../scripts/lib/config.mjs';
+import { buildModel } from '../../scripts/lib/model.mjs';
+import { checkPlan } from '../../scripts/lib/plan.mjs';
 
 // A graded agent suite: each case is a repo, an optional change and setup, a prompt and graders.
 // The implementer, reviewer and planner evals use it as is. The tester gives its own case check,
@@ -169,6 +172,14 @@ const GRADERS = {
 		return m
 			? { pass: true, detail: `## ${g.section} matches: ${JSON.stringify(m[0])}` }
 			: { pass: false, detail: `## ${g.section} does not match /${g.pattern}/i` };
+	},
+	// The plan in the reply passes `wc.mjs plan check`, so `state start` can start a run with it.
+	planCheck(g, { dir, resultText }) {
+		const config = loadConfig(dir) ?? normalizeConfig({ version: 1, app: { checks: [] } });
+		const result = checkPlan(buildModel(dir, config), resultText ?? '');
+		return result.ok
+			? { pass: true, detail: `plan check: ok (mode=${result.mode})` }
+			: { pass: false, detail: `plan check: ${result.problems.join('; ')}` };
 	},
 	sectionNotMatches(g, { resultText }) {
 		const section = sectionOf(resultText, g.section);

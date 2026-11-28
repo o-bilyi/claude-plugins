@@ -38,7 +38,7 @@ function main() {
 			? ` on another branch (${other.map(([key, b]) => `${key}: ${b}`).join(', ')})`
 			: '';
 		console.log(
-			`workflow run in progress${where}: mode=${run.mode ?? '?'} phase=${run.phase}${round}${plan} (wc.mjs state shows it; resume or clear it)`
+			`workflow run in progress${where}: mode=${run.mode ?? '?'}${run.kind === 'bug' ? ' kind=bug' : ''} phase=${run.phase}${round}${plan} (wc.mjs state shows it; resume or clear it)`
 		);
 	}
 }

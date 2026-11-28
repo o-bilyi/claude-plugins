@@ -215,6 +215,9 @@ describe('contracts', () => {
 			'NEXT:',
 			'in one message, so that they run in parallel',
 			'**Quick mode**',
+			'node "<wc>" repro',
+			'(`plan check`)',
+			'### 4.1 Bug fix: show the bug first',
 		]) {
 			assert.ok(text.includes(part), part);
 		}
@@ -230,6 +233,8 @@ describe('contracts', () => {
 	test('the planner execution section gives the mode and the start of the run', () => {
 		const text = read('agents/planner.md');
 		assert.ok(text.includes('Mode: <quick|full>'));
+		assert.ok(text.includes('Kind: <feature|bug>'));
+		assert.ok(text.includes('## Reproduction'));
 		assert.ok(text.includes('Plan file: <path>'));
 		assert.ok(text.includes('step 0, then step 2 (start the run)'));
 		const workflow = read('skills/feature-workflow/SKILL.md');
