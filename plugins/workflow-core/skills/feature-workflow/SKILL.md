@@ -5,78 +5,182 @@ description: Plan → preflight → implement → test → review → report wor
 
 # Feature workflow
 
-Run every phase from the main session. Subagents cannot start other subagents, and questions asked by a
-subagent don't reliably reach the user.
+Run every phase from the main session. Subagents cannot start other subagents. Questions from a subagent
+do not always reach the user.
 
-The facts come from `wc.mjs`; its path is `${CLAUDE_PLUGIN_ROOT}/scripts/wc.mjs` (written `<wc>` below).
-Pass that resolved path in every subagent prompt. Git is per repo: always `git -C <repo> …`.
+The facts and the decisions come from `wc.mjs`. Its path is `${CLAUDE_PLUGIN_ROOT}/scripts/wc.mjs`
+(`<wc>` below). Give that path in each subagent prompt. Git is per repo: always use `git -C <repo> …`.
+When a `wc.mjs` command prints a `NEXT:` or `MODE:` line, do what that line says.
 
-Check the config first with `node "<wc>" doctor`:
+## 0. Start
 
-- Exit 3 (no config): suggest `/workflow-core:init` and run the same workflow without the config facts.
-  Only `wc.mjs preflight` and the baseline are skipped: still ask the dirty-file question (from
-  `git -C <repo> status --short`) and never switch branches. The tester then reports that checks were not
-  run; tell the user so in the report.
-- Exit 2 (invalid config): show the stderr and stop.
-- Otherwise mention any problems it prints and continue.
+Do these steps in each session of the workflow, also in the session that starts with "Implement the
+following plan:". They only read. They are safe in plan mode.
 
-A session that starts with "Implement the following plan:" skips step 1 and starts at step 2.
+1. Run `node "<wc>" doctor`.
+   - Exit 2 (config not valid): show the stderr and stop.
+   - Exit 3 (no config): tell the user about `/workflow-core:init`. Then do the workflow without the facts
+     from the config (see "Without a config" below).
+   - Exit 0: tell the user about each problem that it prints, and continue.
+2. Run `node "<wc>" writing` once. Write the plan, the questions and the report by the rules that it
+   prints.
+3. Run `node "<wc>" state`. If it shows a run with a `phase` that is not `done`, ask the user: continue
+   that run, or start again. To continue, go to the step of its phase (see "Continue a run" below). To
+   start again, run `node "<wc>" state clear`.
+4. In a session that starts with "Implement the following plan:", go to step 2 now.
+5. Select the mode:
+   - **Quick mode** when the user asks for a quick change. Also use it when the task changes one unit
+     and three files or fewer. Such a task changes no contract between units, no data or schema, no
+     security or authorization, and no dependencies.
+   - **Full mode** for all other tasks.
+
+### Without a config
+
+Skip the `wc.mjs` steps: the baseline, `state`, `scope`, `diffstat` and `metrics`. Still ask about the
+dirty files (from `git -C <repo> status --short`), and never switch branches. Count the rounds yourself.
+The tester then reports that it did not run the checks. Tell the user that in the report.
+
+### Continue a run
+
+| Phase       | Continue at                                                             |
+| ----------- | ----------------------------------------------------------------------- |
+| `preflight` | step 3                                                                  |
+| `implement` | step 4. Tell `implementer` that some steps can be complete.             |
+| `fix`       | step 5.1. Send the last failures or findings again first.               |
+| `review`    | the `next` value of the run: `fix` is step 5.5, `ask` is "Stop and ask" |
+| `report`    | step 6                                                                  |
 
 ## 1. Plan
 
-Read `${CLAUDE_PLUGIN_ROOT}/agents/planner.md` and follow its procedure yourself, including the
-AskUserQuestion interview, with `<wc>` as the wc.mjs path. Do not delegate this to the
-`workflow-core:planner` agent.
+Read `${CLAUDE_PLUGIN_ROOT}/agents/planner.md` and follow its procedure yourself, with `<wc>` as the wc.mjs
+path. Do the AskUserQuestion interview yourself. Do not give this step to the `workflow-core:planner`
+agent. This step writes no run state.
 
-- In plan mode, write the plan to the plan-mode plan file. That file is the only one you write.
-- Outside plan mode, present the plan and wait for approval.
+- In plan mode, write the plan to the plan file of plan mode. That file is the only file that you write.
+  Put its path and the mode in the `## Execution` section.
+- Outside plan mode, show the plan and wait for the approval of the user.
 
-## 2. Preflight
+In quick mode:
 
-Run `node "<wc>" preflight <units from the plan>` once per task (it saves the baseline unless
-`process.preflight.baseline` is `off`).
+- Ask only the questions that the code does not answer, two at most.
+- The plan has only these parts: files, steps, reuse map, acceptance criteria, out of scope and the
+  `## Execution` section.
 
-- **Branch:** when it prints `ticket: missing`, or the ticket differs from the plan's, ask the user how to
-  proceed. Never switch, create or reset branches.
-- **Dirty files:** show them and ask whether they belong to the task. Unrelated ones may stay; they are kept
-  out of the touched files until edited.
-- Never re-run preflight or `baseline save` between fix rounds.
+## 2. Start the run
 
-## 3. Implement
+After the user approves the plan, run one of these:
 
-Do not write the code in the main session. Start the `workflow-core:implementer` agent once, with
-`name: "implementer"`, the full plan text, the plan file path, the `<wc>` path and the preflight dirty-file
-list. Always resume that same `implementer` with SendMessage; never start a second one. If it stops with a
-question, ask the user and send the answer with SendMessage to `implementer`.
+- With a plan file: `node "<wc>" state start --plan <plan file>`.
+- Without a plan file: `node "<wc>" state start <quick|full> --plan -`, with the plan text on stdin.
 
-## 4. Test and review loop
+The script reads the mode from the `## Execution` section of the plan. It keeps a copy of the plan and
+the branch of each repo.
 
-Read `node "<wc>" get process.maxRounds` (the round limit). A round is one SendMessage of failures or
-findings to `implementer`; the first tester run and the first review are free. One review pass is the
-generic reviewer plus every matching project reviewer.
+## 3. Preflight
 
-1. Run `workflow-core:tester` with the `<wc>` path. On `RESULT: FAIL`, send its `caused` and `unsure`
-   failures verbatim with SendMessage to `implementer` (one round), then run the tester again.
-2. On `RESULT: PASS`, run a review pass: `workflow-core:reviewer` with the plan text and the `<wc>` path,
-   then each agent printed by `node "<wc>" reviewers`, each in its own Agent call with the plan text and
-   the `<wc>` path.
-3. Any `REVIEW: BLOCKING`: send all blocking findings verbatim to `implementer` (one round), run the tester
-   again, then another review pass. "Should fix" items and nits go to the report and never start a round.
-4. Done when the last tester run says `RESULT: PASS` and every reviewer in the last pass says
-   `REVIEW: CLEAN`.
+Run `node "<wc>" preflight <units from the plan>` one time for each task. It saves the baseline, unless
+`process.preflight.baseline` is `off`. It also moves the run to `implement`.
 
-Stop and ask the user (fix it in the main session, change the plan, or accept as is) when the round limit
-is reached, or when the implementer reports that the right fix changes the plan.
+- **Branch:** when it prints `ticket: missing`, or the ticket is not the ticket of the plan, ask the user
+  what to do. Never switch, create or reset branches.
+- **Dirty files:** show them, and ask the user if they are part of the task. Files that are not part of
+  the task can stay. The touched files do not include them until somebody edits them.
+- Never run preflight or `baseline save` again between fix rounds.
 
-## 5. Report
+## 4. Implement
 
-- Files changed, per repo; dependency and lockfile changes.
-- The final tester table and its `RESULT:` line.
+Do not write the code in the main session. Start the `workflow-core:implementer` agent one time. Give it:
+
+- `name: "implementer"`;
+- the full plan text and the plan file path;
+- the `<wc>` path;
+- the list of dirty files from preflight.
+
+Always continue that same `implementer` with SendMessage. Never start a second one in the same session.
+If it stops with a question, ask the user. Send the answer with SendMessage to `implementer`.
+
+## 5. Test and review loop
+
+A round is one SendMessage of failures or findings to `implementer`. Before each round, run
+`node "<wc>" state round`. Exit 1 means that the run has no more rounds: go to "Stop and ask". The first tester run
+and the first review are free.
+
+1. **Test.** Run `workflow-core:tester` with the `<wc>` path.
+   - On `RESULT: FAIL`, run `state round`. Then send the `caused` and `unsure` failures, word for word, to
+     `implementer`. Then run the tester again.
+   - Tell the user about the `## Flaky` tests, but do not send them to `implementer`.
+2. **Scope.** On `RESULT: PASS`, run `node "<wc>" scope`. Give its report to the reviewers.
+   - It lists the touched files that the plan does not name, and the touched files that the plan puts
+     out of scope.
+   - `MODE: full` means that a quick run became too large. Tell the user, and do the review pass in full
+     mode.
+3. **Review pass.** Start all reviewers in one message, so that they run in parallel:
+   - `workflow-core:reviewer`;
+   - in full mode, each agent that `node "<wc>" reviewers` prints.
+
+   Give each reviewer the plan text, the scope report and the `<wc>` path. Each reviewer gets its own
+   Agent call. When `workflow-core:simplifier` is in the list, tell `workflow-core:reviewer` that the
+   simplifier runs.
+
+4. **Record.** Record all blocking and "should fix" findings of the pass in one command. Use the IDs of
+   the reviewers, for example `reviewer B1` or `api-reviewer F2`. Use the category from the finding, or
+   select one from the list in step 6.
+
+   ```bash
+   node "<wc>" state review - <<'EOF'
+   [{"reviewer":"reviewer","id":"reviewer B1","severity":"blocking","category":"correctness","path":"src/a.ts:12","summary":"<problem>"}]
+   EOF
+   ```
+
+   Send `[]` when no reviewer has a finding. The command prints a `NEXT:` line.
+
+5. **Next.**
+   - `NEXT: fix`: run `state round`. Then send all blocking findings with their IDs, word for word, to
+     `implementer`. Then go to step 5.1.
+   - `NEXT: ask`: go to "Stop and ask".
+   - `NEXT: report`: go to step 6.
+6. "Should fix" items and nits go in the report. They never start a round.
+
+### Stop and ask
+
+Stop and ask the user what to do in these cases:
+
+- A `wc.mjs` command prints `NEXT: ask`: the run has no more rounds, or the same blocking finding is in the last
+  three review passes.
+- `implementer` reports that the correct fix changes the plan.
+
+The user can fix it in the main session, change the plan, or accept the change as it is.
+
+## 6. Report
+
+Run `node "<wc>" diffstat`. Then report:
+
+- The files that changed, per repo, and the dependency and lockfile changes.
+- The size from `diffstat`, and the size estimate of the plan. Tell the user when the change is two or
+  more times larger.
+- The touched files outside the plan, from the last scope check.
+- The last tester table and its `RESULT:` line, and the flaky tests.
 - The `REVIEW:` lines and the "should fix" items.
-- Pre-existing failures, separately.
-- Anything `implementer` flagged as uncertain.
-- Open questions.
+- The pre-existing failures, in a separate list.
+- The **Reused** and **Duplication found** sections of `implementer`, and what it was not sure about.
+- The open questions.
 
-Do not commit, push or open PRs, and do not write the project docs here: the change may still be fixed
-after the report. If the user wants a PR, tell them to run `/workflow-core:pr`. When the config has a
-`docs` section, the docs are written once the user commits or opens the PR (`/workflow-core:docs`).
+Then record the run. The script adds the mode, the rounds, the size and the findings. Give it only the
+values below:
+
+```bash
+node "<wc>" metrics record - <<'EOF'
+{"result":"PASS","caused":0,"unsure":0,"flaky":0,"estimate":120}
+EOF
+```
+
+`result` is `PASS`, `FAIL` or `ACCEPTED`. The counts are from the last tester run. `estimate` is the
+size estimate of the plan. The finding categories are: `plan`, `correctness`, `data`, `contracts`,
+`security`, `tests`, `structure`, `reuse`, `conventions`, `writing`.
+
+Do not commit, push or open PRs here. Do not write the project docs here, because the change can still
+change after the report.
+
+- For a commit, tell the user about `/workflow-core:commit`.
+- For a PR, tell the user about `/workflow-core:pr`.
+- When the config has a `docs` section, the docs come at the commit or the PR (`/workflow-core:docs`).

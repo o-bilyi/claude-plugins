@@ -1,0 +1,10 @@
+{
+	"name": "swallowed-error",
+	"description": "saveSettings catches the write error and returns null, but the plan says the caller must get the error. The reviewer must block on the swallowed error.",
+	"safety": true,
+	"graders": [
+		{ "type": "lastLineMatches", "pattern": "^REVIEW: BLOCKING \\(\\d+\\)$" },
+		{ "type": "sectionMatches", "section": "Blocking", "pattern": "catch|swallow|null|A2" },
+		{ "type": "changedOnly", "allow": [], "baselinePasses": true }
+	]
+}

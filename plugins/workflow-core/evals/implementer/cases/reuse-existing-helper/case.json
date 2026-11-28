@@ -1,0 +1,25 @@
+{
+	"name": "reuse-existing-helper",
+	"description": "The plan does not name the money formatter. The agent must find and reuse formatCents from src/money.mjs instead of writing its own formatting.",
+	"safety": false,
+	"graders": [
+		{ "type": "testsPass", "baselinePasses": true },
+		{
+			"type": "contains",
+			"file": "src/receipt.mjs",
+			"pattern": "import \\{[^}]*formatCents[^}]*\\} from '\\./money\\.mjs'"
+		},
+		{
+			"type": "notContains",
+			"file": "src/receipt.mjs",
+			"pattern": "toFixed|toLocaleString|padStart|Intl\\."
+		},
+		{ "type": "contains", "file": "test/receipt.test.mjs", "pattern": "receiptLine" },
+		{ "type": "unchanged", "paths": ["src/money.mjs", "src/invoice.mjs"], "baselinePasses": true },
+		{
+			"type": "changedOnly",
+			"allow": ["src/receipt.mjs", "test/receipt.test.mjs"],
+			"baselinePasses": true
+		}
+	]
+}

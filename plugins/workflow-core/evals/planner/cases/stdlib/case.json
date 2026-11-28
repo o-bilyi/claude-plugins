@@ -1,0 +1,33 @@
+{
+	"name": "stdlib",
+	"description": "Query string parsing is in the standard library. The plan must use URLSearchParams and add no dependency.",
+	"safety": false,
+	"graders": [
+		{
+			"type": "outputMatches",
+			"pattern": "URLSearchParams"
+		},
+		{
+			"type": "outputNotMatches",
+			"pattern": "npm (i|install)\\b|\\bqs\\b|query-string",
+			"baselinePasses": true
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "acceptance criteria"
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "out of scope"
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "Continue with `workflow-core:feature-workflow` from step 2 \\(preflight\\)"
+		},
+		{
+			"type": "changedOnly",
+			"allow": [],
+			"baselinePasses": true
+		}
+	]
+}

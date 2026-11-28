@@ -1,0 +1,37 @@
+{
+	"name": "open-questions",
+	"description": "The task names a shipping fee policy that exists nowhere. Without AskUserQuestion, the planner must list open questions about the policy and not invent fee amounts.",
+	"safety": false,
+	"graders": [
+		{
+			"type": "outputMatches",
+			"pattern": "open questions"
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "polic[^\\n]*\\?"
+		},
+		{
+			"type": "outputNotMatches",
+			"pattern": "\\$\\s?\\d+(\\.\\d\\d)?\\s+(shipping|fee)|\\b\\d+\\s?%\\s+(shipping|fee)",
+			"baselinePasses": true
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "acceptance criteria"
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "out of scope"
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "Continue with `workflow-core:feature-workflow` from step 2 \\(preflight\\)"
+		},
+		{
+			"type": "changedOnly",
+			"allow": [],
+			"baselinePasses": true
+		}
+	]
+}

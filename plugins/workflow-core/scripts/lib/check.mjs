@@ -103,14 +103,25 @@ async function runCheck(model, unit, check, ctx) {
 	const command = withIncremental(expanded, buildInfoFile(repo, unit.name, check.name));
 	const result = await runCommand(command, cwd);
 	const verdict = judge(check, result, { cwd, baseline, paths: ctx.paths, label });
+	// A failed test check runs one more time. The status stays `fail`: the tester decides with
+	// `retry` which failures are flaky.
+	if (ctx.retry && check.kind === 'test' && verdict.status === 'fail') {
+		const again = judge(check, await runCommand(command, cwd), {
+			cwd,
+			baseline,
+			paths: ctx.paths,
+			label,
+		});
+		verdict.retry = again.status;
+	}
 	return { ...base, label, mode, command, baseline: Boolean(baseline), ...verdict };
 }
 
-async function checkUnit(model, unit, { stop, touchedResult }) {
+async function checkUnit(model, unit, { stop, touchedResult, kinds, retry }) {
 	const repo = model.repos[unit.repo];
 	const fp = fingerprint(model, unit, touchedResult);
 	const file = fpFile(repo, unit.name);
-	if (stop && existsSync(file) && readFileSync(file, 'utf8') === fp) {
+	if (stop && !kinds && existsSync(file) && readFileSync(file, 'utf8') === fp) {
 		return { name: unit.name, repo: unit.repo, cached: true, checks: [] };
 	}
 
@@ -118,14 +129,19 @@ async function checkUnit(model, unit, { stop, touchedResult }) {
 		touched: touchedResult,
 		lists: unitFiles(model, touchedResult, unit.name),
 		paths: unitPaths(model, touchedResult, unit.name),
+		retry,
 	};
 	const checks = [];
-	for (const check of unit.checks.filter(c => !stop || c.stopHook)) {
+	const selected = unit.checks.filter(
+		c => (!stop || c.stopHook) && (!kinds || kinds.includes(c.kind))
+	);
+	for (const check of selected) {
 		checks.push(await runCheck(model, unit, check, ctx));
 	}
 
+	// A run of only some kinds says nothing about the others, so it never records a pass.
 	if (checks.some(c => c.status === 'fail')) rmSync(file, { force: true });
-	else {
+	else if (!kinds) {
 		mkdirSync(join(repo.state, 'checked'), { recursive: true });
 		writeFileSync(file, fp);
 	}
@@ -141,7 +157,14 @@ function stopUnits(model, touchedResult) {
 
 export async function runChecks(
 	model,
-	{ units: names = [], stop = false, sinceBase = false, only = null } = {}
+	{
+		units: names = [],
+		stop = false,
+		sinceBase = false,
+		only = null,
+		kinds = null,
+		retry = false,
+	} = {}
 ) {
 	const touchedResult = touched(model, { sinceBase, only });
 	const unknown = names.filter(name => !model.units[name]);
@@ -155,7 +178,7 @@ export async function runChecks(
 	units = units.filter(unit => unit.repo !== null && (!stop || unit.stopHook));
 
 	const results = await Promise.all(
-		units.map(unit => checkUnit(model, unit, { stop, touchedResult }))
+		units.map(unit => checkUnit(model, unit, { stop, touchedResult, kinds, retry }))
 	);
 	const checks = results.flatMap(r => r.checks);
 	return {
@@ -182,7 +205,10 @@ export function renderChecks(report) {
 			const reason = c.status === 'skipped' ? ` (${c.reason})` : '';
 			const where = c.untouched ? 'in untouched files' : 'pre-existing';
 			const pre = c.preExisting ? ` (${c.preExisting} ${where})` : '';
-			lines.push(`- ${ICON[c.status]} ${c.label.slice(unit.name.length + 1)}${reason}${pre}`);
+			const retry = c.retry ? ` (retry: ${c.retry})` : '';
+			lines.push(
+				`- ${ICON[c.status]} ${c.label.slice(unit.name.length + 1)}${reason}${pre}${retry}`
+			);
 		}
 		for (const c of unit.checks.filter(c => c.status === 'fail')) {
 			lines.push('', `### ${c.label}`, `\`${c.command}\``, '```');

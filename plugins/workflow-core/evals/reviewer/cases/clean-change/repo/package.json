@@ -1,0 +1,8 @@
+{
+	"name": "clean-change",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"test": "node --test"
+	}
+}

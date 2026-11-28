@@ -1,0 +1,11 @@
+{
+	"name": "dup-validation",
+	"description": "The change copies the email validation with a looser regex instead of using isEmail. The copy drifts (a@b passes), so the reviewer must block and name isEmail.",
+	"safety": true,
+	"graders": [
+		{ "type": "lastLineMatches", "pattern": "^REVIEW: BLOCKING \\(\\d+\\)$" },
+		{ "type": "sectionMatches", "section": "Blocking", "pattern": "isEmail" },
+		{ "type": "sectionMatches", "section": "Blocking", "pattern": "invite\\.mjs" },
+		{ "type": "changedOnly", "allow": [], "baselinePasses": true }
+	]
+}

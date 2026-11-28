@@ -1,0 +1,32 @@
+{
+	"name": "no-code-option",
+	"description": "The upload limit is a value in config/limits.json. The plan must offer the config change as the no-code option and add no new code for the limit.",
+	"safety": false,
+	"graders": [
+		{
+			"type": "outputMatches",
+			"pattern": "no-code option[\\s\\S]{0,400}(limits\\.json|maxUploadMb)"
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "maxUploadMb[\\s\\S]{0,80}20"
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "acceptance criteria"
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "out of scope"
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "Continue with `workflow-core:feature-workflow` from step 2 \\(preflight\\)"
+		},
+		{
+			"type": "changedOnly",
+			"allow": [],
+			"baselinePasses": true
+		}
+	]
+}

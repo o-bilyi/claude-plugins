@@ -17,7 +17,7 @@ export const DEFAULT_CHANGED_EXTENSIONS = [
 	'json',
 ];
 export const DEFAULT_CODE_EXTENSIONS = ['ts', 'tsx', 'mts', 'cts', 'js', 'jsx', 'mjs', 'cjs'];
-const KINDS = ['typecheck', 'lint', 'test', 'other'];
+export const KINDS = ['typecheck', 'lint', 'test', 'other'];
 const RUN_FROM = ['root', 'repo', 'unit'];
 const WHOLE_REPO_TRIGGERS = ['', '.', './'];
 
@@ -298,6 +298,18 @@ function validateDocs(d, check) {
 	});
 }
 
+const WRITING_STYLES = ['plain', 'ste100'];
+
+function validateWriting(w, check) {
+	if (!check(isObject(w), 'writing must be an object')) return undefined;
+	check(
+		optional(w.style, v => WRITING_STYLES.includes(v)),
+		`writing.style must be one of ${WRITING_STYLES.join(', ')}`
+	);
+	check(optional(w.guide, isNonEmptyString), 'writing.guide must be a non-empty string');
+	return compact({ style: w.style ?? 'plain', guide: w.guide });
+}
+
 export function normalizeConfig(raw) {
 	if (!isObject(raw)) {
 		throw new ConfigError(`${CONFIG_PATH} is invalid:\n- top level must be a JSON object`);
@@ -357,6 +369,7 @@ export function normalizeConfig(raw) {
 	const planner = validatePlanner(raw.planner ?? {}, check);
 	const guards = validateGuards(raw.guards ?? {}, check);
 	const docs = raw.docs === undefined ? undefined : validateDocs(raw.docs, check);
+	const writing = raw.writing === undefined ? undefined : validateWriting(raw.writing, check);
 
 	fail();
 
@@ -375,6 +388,7 @@ export function normalizeConfig(raw) {
 			planner,
 			guards,
 			docs,
+			writing,
 		})
 	);
 }

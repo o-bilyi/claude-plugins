@@ -6,23 +6,26 @@ model: haiku
 
 # Verify touched units
 
-Checks must pass for every touched unit before work is done.
+The checks must pass for each touched unit before the work is complete.
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/scripts/wc.mjs" check --since-base
 node "${CLAUDE_PLUGIN_ROOT}/scripts/wc.mjs" units
 ```
 
-- If the user named units, check only those: `wc.mjs check <unit> <unit> --since-base`.
-- Exit 3: `.claude/workflow.config.json` is missing. Tell the user to run `/workflow-core:init` and stop.
-  Exit 2: show the stderr and stop. Exit 1 means a check failed.
-- Show the markdown that `check` prints.
-- Read the notes of the checked units in `units`. When a note applies (for example "also verify web when
-  a public API changes"), run `wc.mjs check <that unit> --since-base` too.
+- If the user names units, check only those: `wc.mjs check <unit> <unit> --since-base`.
+- To run only one kind of check, add `--kind <typecheck|lint|test|other>`.
+- Exit 3: `.claude/workflow.config.json` is missing. Tell the user to run `/workflow-core:init`, and stop.
+- Exit 2: show the stderr and stop. Exit 1 means that a check failed.
+- Show the Markdown that `check` prints.
+- Read the notes of the checked units in `units`. A note can tell you to verify another unit, for example
+  "also verify web when a public API changes". If it applies, also run
+  `wc.mjs check <that unit> --since-base`.
 - Never run watch modes or dev servers.
 
 ## Report
 
-One line per unit × check: ✅ / ❌ / ⏭ with the first relevant error lines and the skip reasons. Errors
-marked pre-existing (in the baseline, or outside the touched files) do not fail a check. Never claim done
-when anything failed: say what failed.
+Write one line for each unit and check: ✅, ❌ or ⏭. Add the first relevant error lines and the reasons
+for skips. A pre-existing error does not fail a check. A pre-existing error is in the baseline, or
+outside the touched files. If a check failed, tell the user what failed. Never say that the work is
+complete when a check failed.
