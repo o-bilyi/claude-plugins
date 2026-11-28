@@ -1,0 +1,35 @@
+{
+	"name": "reuse-map",
+	"description": "The repo already formats cents with formatCents in src/money.mjs. The plan's reuse map must name it, so receipts do not get a second formatter.",
+	"safety": false,
+	"graders": [
+		{
+			"type": "outputMatches",
+			"pattern": "reuse map[\\s\\S]{0,600}money\\.mjs"
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "formatCents"
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "acceptance criteria"
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "out of scope"
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "step 0, then step 2 \\(start the run\\)"
+		},
+		{
+			"type": "planCheck"
+		},
+		{
+			"type": "changedOnly",
+			"allow": [],
+			"baselinePasses": true
+		}
+	]
+}

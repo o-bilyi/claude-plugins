@@ -14,10 +14,16 @@ export function cliFail(usage, message) {
 	process.exit(2);
 }
 
-export function parseCli({ usage, runs: defaultRuns, budget: defaultBudget, dryRuns }) {
+export function parseCli({
+	usage,
+	models: defaultModels = 'haiku,sonnet',
+	runs: defaultRuns,
+	budget: defaultBudget,
+	dryRuns,
+}) {
 	const { values } = parseArgs({
 		options: {
-			models: { type: 'string', default: 'haiku,sonnet' },
+			models: { type: 'string', default: defaultModels },
 			runs: { type: 'string', default: defaultRuns },
 			case: { type: 'string' },
 			'budget-usd': { type: 'string', default: defaultBudget },

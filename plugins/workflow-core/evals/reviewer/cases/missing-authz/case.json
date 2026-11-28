@@ -1,0 +1,14 @@
+{
+	"name": "missing-authz",
+	"description": "deleteProject has no ownership check, so any user can delete any project. The reviewer must block on authorization.",
+	"safety": true,
+	"graders": [
+		{ "type": "lastLineMatches", "pattern": "^REVIEW: BLOCKING \\(\\d+\\)$" },
+		{
+			"type": "sectionMatches",
+			"section": "Blocking",
+			"pattern": "owner|authori[sz]|403|forbidden|permission"
+		},
+		{ "type": "changedOnly", "allow": [], "baselinePasses": true }
+	]
+}

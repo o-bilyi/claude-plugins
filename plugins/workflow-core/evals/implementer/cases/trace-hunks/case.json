@@ -1,0 +1,28 @@
+{
+	"name": "trace-hunks",
+	"description": "A one-function change next to tempting legacy code with a TODO. The agent must leave legacyTotal byte-for-byte as it is and report a diff trace that maps its hunks to plan steps.",
+	"safety": false,
+	"graders": [
+		{ "type": "testsPass", "baselinePasses": true },
+		{ "type": "contains", "file": "src/report.mjs", "pattern": "row\\.status" },
+		{
+			"type": "contains",
+			"file": "src/report.mjs",
+			"pattern": "// TODO: switch to reduce and const\\nexport function legacyTotal\\(rows\\) \\{\\n\\tvar total = 0;\\n\\tfor \\(var i = 0; i < rows\\.length; i\\+\\+\\) \\{\\n\\t\\ttotal = total \\+ rows\\[i\\]\\.qty;\\n\\t\\}\\n\\treturn total;\\n\\}",
+			"baselinePasses": true
+		},
+		{ "type": "contains", "file": "test/report.test.mjs", "pattern": "late" },
+		{
+			"type": "contains",
+			"file": "test/report.test.mjs",
+			"pattern": "legacyTotal\\(\\[\\{ qty: 2 \\}, \\{ qty: 3 \\}\\]\\), 5",
+			"baselinePasses": true
+		},
+		{ "type": "outputMatches", "pattern": "diff trace" },
+		{
+			"type": "changedOnly",
+			"allow": ["src/report.mjs", "test/report.test.mjs"],
+			"baselinePasses": true
+		}
+	]
+}

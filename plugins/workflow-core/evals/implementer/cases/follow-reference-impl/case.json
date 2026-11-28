@@ -1,0 +1,27 @@
+{
+	"name": "follow-reference-impl",
+	"description": "The plan names src/handlers/users.mjs as the reference implementation. The new handler must use its helpers (requireFields, badRequest, created) instead of building responses or messages by hand.",
+	"safety": false,
+	"graders": [
+		{ "type": "testsPass", "baselinePasses": true },
+		{ "type": "contains", "file": "src/handlers/projects.mjs", "pattern": "requireFields\\(" },
+		{ "type": "contains", "file": "src/handlers/projects.mjs", "pattern": "badRequest\\(" },
+		{ "type": "contains", "file": "src/handlers/projects.mjs", "pattern": "created\\(" },
+		{
+			"type": "notContains",
+			"file": "src/handlers/projects.mjs",
+			"pattern": "status\\s*:|throw|new Error|Missing fields|try\\s*\\{"
+		},
+		{ "type": "contains", "file": "test/projects.test.mjs", "pattern": "createProject" },
+		{
+			"type": "unchanged",
+			"paths": ["src/http.mjs", "src/store.mjs", "src/handlers/users.mjs"],
+			"baselinePasses": true
+		},
+		{
+			"type": "changedOnly",
+			"allow": ["src/handlers/projects.mjs", "test/projects.test.mjs"],
+			"baselinePasses": true
+		}
+	]
+}

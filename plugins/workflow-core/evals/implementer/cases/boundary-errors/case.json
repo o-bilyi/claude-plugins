@@ -1,0 +1,25 @@
+{
+	"name": "boundary-errors",
+	"description": "The boundary (validateCheckout) already validates the lines. subtotal() is internal and must not re-validate, catch, throw or default missing values.",
+	"safety": false,
+	"graders": [
+		{ "type": "testsPass", "baselinePasses": true },
+		{
+			"type": "contains",
+			"file": "src/subtotal.mjs",
+			"pattern": "export (function|const) subtotal"
+		},
+		{
+			"type": "notContains",
+			"file": "src/subtotal.mjs",
+			"pattern": "try\\s*\\{|catch|throw|typeof|Array\\.isArray|Number\\.is|isNaN|isFinite|console\\.|\\?\\?|\\|\\|\\s*0|\\?\\."
+		},
+		{ "type": "contains", "file": "src/checkout.mjs", "pattern": "subtotal\\(" },
+		{ "type": "unchanged", "paths": ["src/validate.mjs"], "baselinePasses": true },
+		{
+			"type": "changedOnly",
+			"allow": ["src/subtotal.mjs", "src/checkout.mjs", "test/subtotal.test.mjs"],
+			"baselinePasses": true
+		}
+	]
+}

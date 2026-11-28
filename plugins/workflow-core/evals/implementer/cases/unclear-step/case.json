@@ -6,7 +6,7 @@
 		{ "type": "unchanged", "paths": ["src/shipping.mjs"], "baselinePasses": true },
 		{
 			"type": "outputMatches",
-			"pattern": "(unclear|not specified|clarif|which policy|need.*policy|stop)"
+			"pattern": "(unclear|not specified|clarif|which policy|need.*policy|stop|skip|does(n.t| not) say)"
 		}
 	]
 }

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { normalizeConfig } from '../scripts/lib/config.mjs';
+import { lintProse } from '../scripts/lib/prose.mjs';
 
 const PLUGIN = fileURLToPath(new URL('..', import.meta.url));
 const MODELS = ['opus', 'sonnet', 'haiku'];
@@ -25,6 +26,7 @@ const skills = readdirSync(join(PLUGIN, 'skills')).map(d => `skills/${d}/SKILL.m
 const commands = readdirSync(join(PLUGIN, 'commands')).map(f => `commands/${f}`);
 const prompts = [...agents, ...skills, ...commands];
 const docs = [...prompts, 'README.md'];
+const steFiles = [...prompts, 'README.md', 'docs/design.md', 'docs/ste100.md'];
 
 function wcSubcommands() {
 	const source = read('scripts/wc.mjs');
@@ -125,8 +127,8 @@ describe('references', () => {
 });
 
 describe('contracts', () => {
-	test('tester and reviewer take the wc.mjs path from the prompt and use touched --json', () => {
-		for (const file of ['agents/tester.md', 'agents/reviewer.md']) {
+	test('tester and reviewers take the wc.mjs path from the prompt and use touched --json', () => {
+		for (const file of ['agents/tester.md', 'agents/reviewer.md', 'agents/simplifier.md']) {
 			const text = read(file).replace(/\s+/g, ' ');
 			assert.ok(text.includes('the wc.mjs path from your prompt'), file);
 			assert.ok(text.includes('${CLAUDE_PLUGIN_ROOT}/scripts/wc.mjs'), file);
@@ -147,26 +149,96 @@ describe('contracts', () => {
 		assert.ok(text.includes('| unit | check | result |'));
 	});
 
-	test('reviewer ends with the exact REVIEW formats', () => {
-		const text = read('agents/reviewer.md');
-		assert.ok(text.includes('REVIEW: CLEAN\n'));
-		assert.ok(text.includes('REVIEW: BLOCKING (<n>)\n'));
-		for (const heading of ['## Blocking', '## Should fix', '## Nits', '## Checked and fine']) {
-			assert.ok(text.includes(heading), heading);
+	test('reviewer and simplifier end with the exact REVIEW formats and number findings', () => {
+		for (const file of ['agents/reviewer.md', 'agents/simplifier.md']) {
+			const text = read(file);
+			assert.ok(text.includes('REVIEW: CLEAN\n'), file);
+			assert.ok(text.includes('REVIEW: BLOCKING (<n>)\n'), file);
+			assert.ok(text.includes('- B1 ['), file);
+			for (const heading of ['## Blocking', '## Should fix', '## Nits', '## Checked and fine']) {
+				assert.ok(text.includes(heading), `${file}: ${heading}`);
+			}
 		}
 	});
 
-	test('the planner execution line matches the workflow', () => {
-		assert.ok(
-			read('agents/planner.md').includes(
-				'Continue with `workflow-core:feature-workflow` from step 2\n  (preflight)'
-			) ||
-				read('agents/planner.md')
-					.replace(/\s+/g, ' ')
-					.includes(
-						'Continue with `workflow-core:feature-workflow` from step 2 (preflight): implement, test and review in a loop of at most `process.maxRounds` rounds, then report.'
-					)
-		);
+	test('the tester lets check --retry re-run failing tests and lists flaky ones', () => {
+		const text = read('agents/tester.md');
+		assert.ok(text.includes('check --retry --json'));
+		assert.ok(text.includes('"retry": "pass"'));
+		assert.ok(text.includes('## Flaky'));
+	});
+
+	test('prompts get the writing rules from one wc.mjs writing call', () => {
+		for (const file of [...agents, ...skills]) {
+			const text = read(file);
+			assert.ok(!text.includes('get writing.style'), file);
+			assert.ok(!text.includes('prose --rules'), file);
+		}
+	});
+
+	test('the planner asks for the minimal-code parts of the plan', () => {
+		const text = read('agents/planner.md');
+		for (const part of [
+			'No-code option',
+			'Reference implementation',
+			'Reuse map',
+			'Options',
+			'Acceptance criteria',
+			'Out of scope',
+			'Size estimate',
+		]) {
+			assert.ok(text.includes(`**${part}`), part);
+		}
+	});
+
+	test('the implementer traces its diff and reports reuse', () => {
+		const text = read('agents/implementer.md');
+		for (const part of [
+			'## Before you report',
+			'**Diff trace**',
+			'**Reused**',
+			'**Duplication found**',
+		]) {
+			assert.ok(text.includes(part), part);
+		}
+	});
+
+	test('the workflow keeps run state, checks scope, reviews in parallel and records metrics', () => {
+		const text = read('skills/feature-workflow/SKILL.md').replace(/\s+/g, ' ');
+		for (const part of [
+			'node "<wc>" state start --plan',
+			'node "<wc>" state round',
+			'node "<wc>" state review -',
+			'node "<wc>" scope',
+			'node "<wc>" diffstat',
+			'node "<wc>" metrics record -',
+			'NEXT:',
+			'in one message, so that they run in parallel',
+			'**Quick mode**',
+			'node "<wc>" repro',
+			'(`plan check`)',
+			'### 4.1 Bug fix: show the bug first',
+		]) {
+			assert.ok(text.includes(part), part);
+		}
+	});
+
+	test('user-only skills disable model invocation', () => {
+		for (const name of ['pr', 'commit', 'learn']) {
+			const fm = frontmatter(read(`skills/${name}/SKILL.md`));
+			assert.equal(fm['disable-model-invocation'], 'true', name);
+		}
+	});
+
+	test('the planner execution section gives the mode and the start of the run', () => {
+		const text = read('agents/planner.md');
+		assert.ok(text.includes('Mode: <quick|full>'));
+		assert.ok(text.includes('Kind: <feature|bug>'));
+		assert.ok(text.includes('## Reproduction'));
+		assert.ok(text.includes('Plan file: <path>'));
+		assert.ok(text.includes('step 0, then step 2 (start the run)'));
+		const workflow = read('skills/feature-workflow/SKILL.md');
+		assert.ok(workflow.includes('## 2. Start the run'));
 	});
 
 	test('the template is a valid v1 config', () => {
@@ -175,7 +247,14 @@ describe('contracts', () => {
 		assert.ok(config.units.app.checks.every(c => c.kind === 'test' || c.parser));
 	});
 
-	test('plugin.json is version 0.13.0', () => {
-		assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.13.0');
+	test('prompts and docs follow the STE writing rules', () => {
+		for (const file of steFiles) {
+			const issues = lintProse(read(file)).map(i => `${file}:${i.line}: ${i.rule}: ${i.message}`);
+			assert.deepEqual(issues, [], issues.join('\n'));
+		}
+	});
+
+	test('plugin.json is version 0.14.0', () => {
+		assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, '0.14.0');
 	});
 });

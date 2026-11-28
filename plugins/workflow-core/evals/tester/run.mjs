@@ -5,42 +5,17 @@ import {
 	cpSync,
 	existsSync,
 	mkdirSync,
-	mkdtempSync,
-	readdirSync,
 	readFileSync,
 	realpathSync,
 	rmSync,
 	writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import {
-	claudeRecord,
-	cliFail,
-	diffSnapshots,
-	fmtNum,
-	git,
-	globToRegExp,
-	mean,
-	noJsonError,
-	parseClaudeJson,
-	parseCli as parseEvalCli,
-	pct,
-	PLUGIN,
-	pool,
-	readIn,
-	runClaude,
-	snapshot,
-	tail,
-	WC,
-} from '../lib/harness.mjs';
+import { diffSnapshots, fmtNum, git, mean, pct, tail, WC } from '../lib/harness.mjs';
+import { runSuite } from '../lib/suite.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const CASES = join(HERE, 'cases');
-const AGENT = 'workflow-core:tester';
-const TOOLS = ['Read', 'Grep', 'Glob', 'Bash'];
-const EXTRA_ARGS = ['--settings', '{"disableAllHooks":true}'];
 const WC_TIMEOUT_MS = 2 * 60 * 1000;
 const TAG_ACCURACY_TARGET = 0.9;
 const DEFAULT_PROMPT =
@@ -53,35 +28,16 @@ const USAGE = `usage: node run.mjs [--models haiku,sonnet] [--runs 5] [--case <g
   --jobs               runs in parallel (default 1)
   --keep               keep the temp repos (their paths go into results.json)`;
 
-function parseCli() {
-	return parseEvalCli({ usage: USAGE, runs: '5', budget: '0.5', dryRuns: ['reference'] });
-}
-
-function fail(message) {
-	cliFail(USAGE, message);
-}
-
-function loadCases(glob) {
-	const names = readdirSync(CASES, { withFileTypes: true })
-		.filter(d => d.isDirectory() && !d.name.startsWith('.'))
-		.map(d => d.name)
-		.filter(name => !glob || globToRegExp(glob).test(name))
-		.sort();
-	if (names.length === 0) fail(`no case matches ${glob}`);
-	return names.map(name => {
-		const dir = join(CASES, name);
-		const def = JSON.parse(readFileSync(join(dir, 'case.json'), 'utf8'));
-		if (!def.expected?.result) throw new Error(`${name}: case.json has no expected.result`);
-		const stubKeys = new Set(
-			Object.entries(def.stubs ?? {}).flatMap(([unitDir, stubs]) =>
-				stubs.map(stub => `${unitDir}/${stub}`)
-			)
-		);
-		for (const key of [...Object.keys(def.before ?? {}), ...Object.keys(def.after ?? {})]) {
-			if (!stubKeys.has(key)) throw new Error(`${name}: output for ${key}, which is not a stub`);
-		}
-		return { ...def, name, dir };
-	});
+function validateCase(def, name) {
+	if (!def.expected?.result) throw new Error(`${name}: case.json has no expected.result`);
+	const stubKeys = new Set(
+		Object.entries(def.stubs ?? {}).flatMap(([unitDir, stubs]) =>
+			stubs.map(stub => `${unitDir}/${stub}`)
+		)
+	);
+	for (const key of [...Object.keys(def.before ?? {}), ...Object.keys(def.after ?? {})]) {
+		if (!stubKeys.has(key)) throw new Error(`${name}: output for ${key}, which is not a stub`);
+	}
 }
 
 const RESULT_RE = /^RESULT: (PASS|FAIL \((\d+) caused, (\d+) unsure, (\d+) pre-existing\))$/;
@@ -329,48 +285,14 @@ function compareCheck(c, dir) {
 	return mismatches;
 }
 
-async function runOne({ c, model, run, opts }) {
-	const record = { case: c.name, model, run };
-	const dir = realpathSync(mkdtempSync(join(tmpdir(), `wc-eval-tester-${c.name}-`)));
-	if (opts.keep) record.dir = dir;
-	try {
-		await prepare(c, dir);
-		const before = snapshot(dir);
-		let resultText = '';
-		if (opts.dryRun === 'reference') {
-			const reference = readIn(c.dir, 'reference-output.md');
-			if (reference === null) throw new Error('no reference-output.md');
-			resultText = reference;
-			record.checkMismatches = compareCheck(c, dir);
-		} else {
-			const prompt = (readIn(c.dir, 'prompt.md') ?? DEFAULT_PROMPT)
-				.replaceAll('{{REPO}}', dir)
-				.replaceAll('{{WC}}', WC);
-			const raw = await runClaude({
-				prompt,
-				agent: AGENT,
-				model,
-				budget: opts.budget,
-				dir,
-				tools: TOOLS,
-				extraArgs: EXTRA_ARGS,
-			});
-			const json = parseClaudeJson(raw.stdout);
-			record.claude = claudeRecord(json, raw);
-			if (!json) record.error = noJsonError(raw);
-			resultText = typeof json?.result === 'string' ? json.result : '';
-			record.headMoved = git(dir, ['rev-list', '--count', 'HEAD']).trim() !== '1';
-		}
-		record.resultText = resultText;
-		const after = snapshot(dir);
-		record.metrics = gradeReport(c.expected, resultText, diffSnapshots(before, after));
-		record.passed = record.metrics.passed;
-	} catch (error) {
-		record.error = `harness: ${error.message}`;
-	} finally {
-		if (!opts.keep) rmSync(dir, { recursive: true, force: true });
+function grade({ c, dir, before, after, resultText, opts }) {
+	if (opts.dryRun === 'reference' && !existsSync(join(c.dir, 'reference-output.md'))) {
+		throw new Error('no reference-output.md');
 	}
-	return record;
+	const metrics = gradeReport(c.expected, resultText, diffSnapshots(before, after));
+	const fields = { metrics, passed: metrics.passed };
+	if (opts.dryRun === 'reference') fields.checkMismatches = compareCheck(c, dir);
+	return fields;
 }
 
 function dryRunReport(records) {
@@ -515,59 +437,25 @@ function summarize(records, opts) {
 	return lines.join('\n');
 }
 
-async function main() {
-	const opts = parseCli();
-	const cases = loadCases(opts.caseGlob);
-	const tasks = [];
-	for (const c of cases) {
-		for (const model of opts.models) {
-			for (let run = 1; run <= opts.runs; run++) tasks.push(() => runOne({ c, model, run, opts }));
-		}
-	}
-
-	if (opts.dryRun) {
-		const records = await pool(tasks, opts.jobs, () => {});
-		const report = dryRunReport(records);
-		console.log(report.text);
-		process.exit(report.ok ? 0 : 1);
-	}
-
-	const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-	const out = resolve(opts.out ?? join(PLUGIN, 'evals', 'results', `tester-${stamp}`));
-	mkdirSync(out, { recursive: true });
-	const maxCost = tasks.length * opts.budget;
-	console.log(
-		`${cases.length} cases x ${opts.models.length} models x ${opts.runs} runs = ${tasks.length} runs, at most $${maxCost.toFixed(2)}. Output: ${out}`
-	);
-
-	const done = [];
-	const meta = { startedAt: new Date().toISOString(), plugin: PLUGIN, ...opts };
-	const save = () =>
-		writeFileSync(join(out, 'results.json'), `${JSON.stringify({ meta, runs: done }, null, 2)}\n`);
-	await pool(tasks, opts.jobs, r => {
-		done.push(r);
-		save();
-		const status = r.error
-			? `ERROR ${r.error.split('\n')[0]}`
-			: r.passed
-				? 'pass'
-				: `fail${r.metrics.falsePass ? ' (false PASS)' : ''}`;
-		const cost = r.claude?.costUsd != null ? ` $${r.claude.costUsd.toFixed(3)}` : '';
-		console.log(
-			`[${done.length}/${tasks.length}] ${r.case} ${r.model} #${r.run}: ${status}${cost}`
-		);
-	});
-
-	const order = (a, b) =>
-		a.case.localeCompare(b.case) || a.model.localeCompare(b.model) || a.run - b.run;
-	done.sort(order);
-	meta.finishedAt = new Date().toISOString();
-	save();
-	const summary = summarize(done, opts);
-	writeFileSync(join(out, 'summary.md'), `${summary}\n`);
-	console.log(`\n${summary}`);
-}
-
 if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
-	await main();
+	await runSuite({
+		name: 'tester',
+		title: 'Tester',
+		agent: 'workflow-core:tester',
+		tools: ['Read', 'Grep', 'Glob', 'Bash'],
+		casesDir: join(HERE, 'cases'),
+		model: 'haiku',
+		runs: '5',
+		budget: '0.5',
+		extraArgs: ['--settings', '{"disableAllHooks":true}'],
+		usage: USAGE,
+		dryRuns: ['reference'],
+		defaultPrompt: DEFAULT_PROMPT,
+		validateCase,
+		prepare,
+		grade,
+		dryRunReport,
+		summarize,
+		status: r => `fail${r.metrics.falsePass ? ' (false PASS)' : ''}`,
+	});
 }

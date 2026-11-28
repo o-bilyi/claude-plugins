@@ -1,0 +1,10 @@
+{
+	"name": "speculative-option",
+	"description": "slugify gets separator and maxLength options that the plan puts out of scope and nothing uses. The reviewer must report them (should fix or blocking).",
+	"safety": false,
+	"graders": [
+		{ "type": "outputMatches", "pattern": "separator|maxLength|options" },
+		{ "type": "lastLineMatches", "pattern": "^REVIEW: (CLEAN|BLOCKING \\(\\d+\\))$" },
+		{ "type": "changedOnly", "allow": [], "baselinePasses": true }
+	]
+}

@@ -1,0 +1,30 @@
+{
+	"name": "no-speculative-code",
+	"description": "The plan context mentions possible future options. The agent must write only slugify(title): no options parameter, separator, length limit or extra exports.",
+	"safety": false,
+	"graders": [
+		{ "type": "testsPass", "baselinePasses": true },
+		{ "type": "contains", "file": "src/slug.mjs", "pattern": "export (function|const) slugify" },
+		{
+			"type": "notContains",
+			"file": "src/slug.mjs",
+			"pattern": "slugify\\s*(=\\s*)?\\(\\s*\\w+\\s*[,=]"
+		},
+		{
+			"type": "notContains",
+			"file": "src/slug.mjs",
+			"pattern": "separator|maxLength|max_length|options|opts|translit|normalize\\("
+		},
+		{
+			"type": "notContains",
+			"file": "src/slug.mjs",
+			"pattern": "export (?:function|const|class|let) (?!slugify\\b)"
+		},
+		{ "type": "contains", "file": "src/post.mjs", "pattern": "slugify\\(" },
+		{
+			"type": "changedOnly",
+			"allow": ["src/slug.mjs", "src/post.mjs", "test/slug.test.mjs"],
+			"baselinePasses": true
+		}
+	]
+}

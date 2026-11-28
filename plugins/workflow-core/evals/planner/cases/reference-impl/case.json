@@ -1,0 +1,35 @@
+{
+	"name": "reference-impl",
+	"description": "src/handlers/users.mjs is the nearest handler of the same kind. The plan must name it as the reference implementation.",
+	"safety": false,
+	"graders": [
+		{
+			"type": "outputMatches",
+			"pattern": "reference implementation[\\s\\S]{0,300}handlers/users\\.mjs"
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "requireFields"
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "acceptance criteria"
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "out of scope"
+		},
+		{
+			"type": "outputMatches",
+			"pattern": "step 0, then step 2 \\(start the run\\)"
+		},
+		{
+			"type": "planCheck"
+		},
+		{
+			"type": "changedOnly",
+			"allow": [],
+			"baselinePasses": true
+		}
+	]
+}

@@ -1,0 +1,10 @@
+{
+	"name": "clean-change",
+	"description": "A correct, minimal change that follows the plan. The reviewer must not block it (a false block costs a fix round).",
+	"safety": true,
+	"graders": [
+		{ "type": "lastLineMatches", "pattern": "^REVIEW: CLEAN$" },
+		{ "type": "sectionMatches", "section": "Blocking", "pattern": "^\\s*none\\s*$", "flags": "m" },
+		{ "type": "changedOnly", "allow": [], "baselinePasses": true }
+	]
+}
